@@ -1,0 +1,417 @@
+ 
+
+
+*FOR LAST REVISION, I HAND REDID THE TABLES, NOTE THAT WHEN REPLICATING. 
+
+
+
+clear all
+
+cd "C:\Users\scranney\Desktop"
+
+set more off
+
+do "GSS_VC"
+
+drop if year==2013
+drop if year==2014
+
+drop noreligion
+
+generate Blackperc= Black*100
+generate OtherRaceperc= OtherRace*100
+generate Maleperc= Male*100
+generate Widowedperc= Widowed*100
+generate Divorcedperc= Divorced*100
+generate Separatedperc= Separated*100
+generate Marriedperc= Married*100
+
+
+label variable Blackperc "Black (%)"
+label variable OtherRaceperc "Other Race (%)"
+label variable Maleperc "Male (%)"
+label variable Widowedperc "Widowed (%)"
+label variable Divorcedperc "Divorced (%)"
+label variable Separatedperc "Separated (%)"
+label variable Marriedperc "Married (%)"
+label variable Age "Age"
+
+global controls= "Age10 Age2 Male FamilyIncome YrsEduc Black OtherRace Widowed Divorced Separated Married i.region"
+global controls1= "Age Maleperc FamilyIncome YrsEduc Blackperc OtherRaceperc  Widowedperc Divorcedperc Separatedperc Marriedperc"
+global reltrad= "evangelical catholic mainline blackprotestant jewish otherfaith nonaffiliated" //unaffiliated is the default category (most natural reference point). 
+
+*Check to see if reltrad predicts child number have more children. 
+
+correlate blackprotestant Black //200 Clearly distinct from being black". High correlation however.  
+
+  reg childs $reltrad $controls Hispanic i.year //They wash out once Hispanic is controlled for. 
+ reg childs Religiousness $reltrad $controls Hispanic i.year 
+ 
+ reg chldidel $reltrad $controls Hispanic i.year 
+  reg chldidel Religiousness $reltrad $controls Hispanic i.year //Baseline for black people. How to control for that? Switches it (idiosyncratic)
+  
+ *First order level they do have more children. Another way to look at this is baseline reilgiosity, identity based. I perform both
+ *the fact that one goes away once I control for the other suggets that...
+
+*generate Religiousness= 5-reliten
+label define Religiousness 1 "No religion" 2 "Somewhat strong" 3 "Not very strong" 4 "Strong"
+
+tab Religiousness, gen(RELIGZ)
+rename RELIGZ1 noreligion
+generate somewhatrelig= RELIGZ2 + RELIGZ3
+rename RELIGZ4 stronglyrelig
+
+generate religiosity=1 if noreligion==1
+replace religiosity=2 if somewhatrelig==1
+replace religiosity=3 if stronglyrelig==1
+
+label variable stronglyrelig "Very religious"
+label variable somewhatrelig "Somewhat religious"
+
+*Figure 1: Histogram of DV:   //HPK said that this was better presented not as a figure. "Makes for a boring figure." 
+*histogram Happy, percent title(Figure 1: Distribution of happiness) xlabel(1 "Not very happy" 2 "Somewhat happy" 3 "V. happy", valuelabel) scale(.8) // CF1
+
+ologit Happy c.stronglyrelig##c.childs c.somewhatrelig##c.childs c.chldidel##c.childs $controls i.year  if year < 2013  //Complete
+generate CASE=1 if e(sample)==1
+generate case=1 //if e(sample)==1 Just making case=1 so I don't have to redo everything else, can't do modal consistency because it cuts N down for ideal. Actually just do it for summary stats. 
+ologit Happy stronglyrelig childs somewhatrelig chldidel $controls i.year  if year < 2013  //Complete
+
+
+
+*Table 1: Summary table, use excel worksheet with embedded macro to fix this (ChldRelSWB_tabstat.xsls)
+tabstat Happy childs chldidel Age10 Male Black OtherRace FamilyIncome YrsEduc Widowed Divorced Separated Married, by(religiosity) statistics (mean sd n)  long format (%5.2f) //CF6
+
+estpost sum Happy childs chldidel $controls1 if noreligion==1 & CASE==1 & year<2013  //For dissertation, just include since 2012. Maybe for pub change it. 
+est store A
+estpost sum Happy childs chldidel $controls1 if somewhatrelig==1 & CASE==1 & year<2013
+est store B
+estpost sum Happy childs chldidel $controls1 if stronglyrelig==1 & CASE==1 & year<2013
+est store C 
+
+esttab A B C using ChldRelSWB_Table1.rtf, replace mtitle("No religion (reliten=1, reference category)" "Somewhat religious (reliten=2 or reliten=3)" "Very religious (reliten=4)") ///   //CF6
+refcat(Happy "\i{Dep. variable}" childs  "\i{Main ind. variables}" Age10 "\i{Control variables}" Blackperc "\i{Race}" Widowedperc "\i{Marital status}" , nolabel) ///
+		main(mean) b(2) aux(sd)nonumber label varwidth(25) modelwidth(10) title("Table 1: Descriptive statistics by religiosity with comparison-of-means tests") addnotes("Happiness: 1= Not too happy, 2= Pretty happy, 3= Very happy") star(+ .10 * .05 ** .01 *** .001)
+		
+
+generate comp_somewhatrelig=1 if somewhatrelig==1
+replace comp_somewhatrelig=0 if noreligion==1
+
+generate comp_stronglyrelig=1 if stronglyrelig==1
+replace comp_stronglyrelig=0 if noreligion==1
+		
+log using ttest, text replace
+foreach var of varlist Happy childs chldidel $controls1 {
+foreach var2 of varlist  comp_somewhatrelig comp_stronglyrelig {
+ttest `var' if case==1, by(`var2')
+sum `var'
+sum `var2'
+}
+}
+log close 
+
+ *Table 2: Preliminary relations
+ 
+ ologit chldidel childs stronglyrelig somewhatrelig $controls i.year if year < 2013 & case==1
+ est store m1
+ 
+ ologit Happy childs stronglyrelig somewhatrelig $controls i.year if year < 2013 & case==1
+ est store m2
+ 
+ ologit Happy c.chldidel##c.childs stronglyrelig somewhatrelig $controls i.year if year < 2013 & case==1
+ est store m3
+ 
+ esttab m1 m2 m3 using ChldRelSWB_Table2.rtf, replace label varwidth(19) order(stronglyrelig somewhatrelig childs chldidel c.chldidel#c.childs) modelwidth(5) se(2) b(2) nonumbers mtitles("Model 1 Ideal # of children" "Model 2 Happiness" "Model 3 Happiness") title("Table 2: Child idealization, religiosity and happiness/children effects (ordered logit)") addnotes("Region-fixed effects and year-fixed effects controlled for in every model" "Happiness: 1= Not too happy, 2= Pretty happy, 3= Very happy") star(+ .10 * .05 ** .01 *** .001) bic drop(*.region *.year) refcat(stronglyrelig  "\i{Main independent variables}" Age10 "\i{Control variables}" Black "\i{Race}" Widowed "\i{Marital status}" , nolabel)
+
+ *Reviewer comment, simple correlation , it's low (include in actual reviewer letter). .11, lot sof other things going on, including covariates, attitudes low correlations with raw sociodemographics. 
+ correlate chldidel religiosity
+
+
+ologit Happy stronglyrelig somewhatrelig childs i.year if year < 2013 & case==1
+est store m1
+ 
+ologit Happy stronglyrelig somewhatrelig childs $controls i.year  if year < 2013 & case==1
+est store m2
+
+ologit Happy c.stronglyrelig##c.childs c.somewhatrelig##c.childs $controls i.year  if year < 2013 & case==1
+est store m3
+
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & case==1
+est store m4
+
+ologit Happy c.stronglyrelig##c.childs c.chldidel##c.childs somewhatrelig $controls i.year  if year < 2013  //Takes the religiosity one out completely once reltrad is included. Too much noise? 
+est store m5
+
+regress Happy c.stronglyrelig##c.childs c.chldidel##c.childs $controls i.year  if year < 2013  //Takes the religiosity one out completely once reltrad is included. Too much noise? 
+
+esttab m1 m2 m3 m4 m5 using ChldRelSWB_Table3.rtf, replace label varwidth(19) order(stronglyrelig somewhatrelig childs chldidel  c.stronglyrelig#c.childs c.somewhatrelig#c.childs c.chldidel#c.childs) modelwidth(5) se(2) b(2) nonumbers mtitles("Model 1 Happiness" "Model 2 Happiness" "Model 3 Happiness" "Model 4 Happiness" "Model 5 Happiness") title("Table 3: The relationship between children number and happiness (ordered logit)") addnotes("Region-fixed effects and year-fixed effects controlled for in every model" "Happiness: 1= Not too happy, 2= Pretty happy, 3= Very happy") star(+ .10 * .05 ** .01 *** .001) bic drop(*.region *.year) refcat(stronglyrelig  "\i{Main independent variables}" Age10 "\i{Control variables}" Black "\i{Race}" Widowed "\i{Marital status}" , nolabel)  //CF8
+
+*Figure one isn't terribly clear for what I want, scrap it for now.  
+*Figure 1 Predictive margins with children //Will need to use graph editor to get rid of "asobserved" line
+*ologit Happy childs##religiosity $controls i.year  if year < 2013 & case==1
+*margins childs##religiosity
+*marginsplot, recast(line) xtitle("Children") title({bf: Figure 1: Predictive margins with 95% CIs}) ytitle("Happiness") xlabel(0 "0" 1 "1" 2 "2" 3 "3" 4 "4" 5 "5" 6 "6" 7 "7" 8 "7<", valuelabel) allxlabels legend(order(1 "No religion" 2 "Somewhat strong" 3 "Very strong")) 
+*graph save ChldRelSWB_marginsplot_child, replace 
+
+
+ *Figure 2: Predictive margin just with parent: Also not clear, plus it doesn't make much sense without figure 1. Plus, regress is different from ologit. 
+*ologit Happy parent##religiosity $controls i.year  if year < 2013 & case==1
+*margins parent##religiosity
+*marginsplot, recast(scatter) title({bf: Figure 1: Predictive margins with 95% CIs}) ytitle("Happiness") xlabel(0 "Not a parent" 1 "Parent", valuelabel)allxlabels nolabels legend(order(1 "No religion" 2 "Somewhat strong" 3 "Very strong")) 
+
+
+*Figure 1 (formerly figure 3). 
+
+ ologit Happy childs $controls i.year if noreligion==1 & year<2013 & case==1
+ est store norelig
+ 
+matrix Var=vecdiag(e(V))
+matmap Var V, map(sqrt(@))
+matrix SE=V'
+matrix colnames SE = SE
+matrix C= e(b)
+matrix Coef= C'
+matrix colnames Coef = Coef
+matrix RELITEN1= Coef, SE
+ 
+ologit Happy childs $controls i.year if somewhatrelig==1 & year<2013 & case==1
+ est store somewhatstrong
+ 
+matrix Var=vecdiag(e(V))
+matmap Var V, map(sqrt(@))
+matrix SE=V'
+matrix colnames SE = SE
+matrix C= e(b)
+matrix Coef= C'
+matrix colnames Coef = Coef
+matrix RELITEN2= Coef, SE
+ 
+ologit Happy childs $controls i.year if stronglyrelig==1 & year<2013 & case==1
+ est store stronglyrelig
+ 
+matrix Var=vecdiag(e(V))
+matmap Var V, map(sqrt(@))
+matrix SE=V'
+matrix colnames SE = SE
+matrix C= e(b)
+matrix Coef= C'
+matrix colnames Coef = Coef
+matrix RELITEN3= Coef, SE
+ 
+ matrix childsmatrix=  RELITEN1[1,1], RELITEN1[1,2], 1\ RELITEN2[1,1],RELITEN2[1,2], 2\ RELITEN3[1,1], RELITEN3[1,2], 3
+ matrix colnames childsmatrix= Coef, SE, Reliten
+ matrix rownames childsmatrix= RELITEN1 RELITEN2 RELITEN3 
+ 
+ svmat childsmatrix
+ 
+ rename childsmatrix1 Coefficient
+ rename childsmatrix2 SE
+ rename childsmatrix3 Reliten
+ 
+label define Reliten 1 "No religion" 2 "Somewhat religious" 3 "Very religious"
+ 
+serrbar Coefficient SE Reliten, title("Figure 1: Happiness on children coefficients") scale(1) xtitle("")  xlabel(1 "No religion" 2 "Somewhat religious" 3 "Very religious", valuelabel)
+*Axis -> Label properties -> 45 degree angle. 
+
+*graph save using ChldRelSWB_fig1, replace  //CF13
+
+
+*Table 4
+matrix list childsmatrix
+
+*NEXT STEP FIGURE OUT HOW TO TALK MY WAY OUT OF THEIR OBSESSION WITH DENOMINATION, HOW TO ARGUE THAT IT DOESN'T MATTER, NO WAY TO FRUITUFLLY INCORPORATE IT, 
+*SIMPLY NECAUISE IT DOESN'T MATTER. WORTH NOTING THAT THIS IS A TREND OTHERS HAVE POINTED OUT (MORGAN, ETC.) 
+*I INCLUDE MORE TO SHOW THAT HTIS IS THE CASE, REGRESSING BY EACH INDIVIDUAL, PER REVIEWER SUGGESTION, DROPPED HISPANIC DISCUSSION, AND 
+*SIMPLY NOTED CONFLUENCE OF HISPANIC ISSUES AND CONTROLLED FOR IT WITHOUT DIVING TOO MUCH INTO ITS BROADER SOCIO-RELIGIOUS IMPLICATIONS. 
+*OR SOMETHING LIKE THAT, CHECK IT OUT. THEN REDO THAT TABLES WITH OLOGIT, ET.C 
+
+
+*MEDIATION
+
+generate idel_inter= chldidel*childs
+generate stronglyrelig_inter= stronglyrelig*childs
+generate somewhatrelig_inter= somewhatrelig*childs
+
+
+
+*Try only one IV (the significant one, stronglyrelig_inter)
+
+sureg (idel_inter stronglyrelig_inter stronglyrelig somewhatrelig childs chldidel $controls i.year) (Happy stronglyrelig somewhatrelig childs chldidel $controls i.year idel_inter stronglyrelig_inter) if year < 2013  //This is the version I sent to Journal of Happiness Studies
+
+nlcom [idel_inter]_b[stronglyrelig_inter]*[Happy]_b[idel_inter] //How much of it is via idel_inter
+
+display .0023239 / (.0025236 +.005417)  //Proportion of total effect that is mediated. 29% of it is mediated. 
+
+
+
+*Bootstrap the relationships
+
+
+capture drop program bootmm
+program bootmm, rclass
+syntax [if] [in]
+sureg (idel_inter stronglyrelig_inter stronglyrelig somewhatrelig childs chldidel $controls i.year) (Happy stronglyrelig somewhatrelig childs chldidel $controls i.year idel_inter stronglyrelig_inter) if year < 2013 `if' `in'  //This is the version I sent to Journal of Happiness Studies
+return scalar inds1 = [Happy]_b[stronglyrelig_inter] 
+return scalar inds2 = [idel_inter]_b[stronglyrelig_inter]*[Happy]_b[idel_inter] 
+end
+
+set seed 1
+bootstrap r(inds1), reps(5000) nodots: bootmm
+
+
+
+		
+
+
+		
+  generate YEAR=1 if year>2002 & year<2013
+  replace YEAR= 2 if year> 1992 & year<2003 
+  replace YEAR= 3 if year> 1982 & year<1993
+  replace YEAR=4 if year> 1972 & year<1983
+  
+  generate YEAR2002=1 if YEAR==1
+  replace YEAR2002=0 if YEAR==2 | YEAR==3 | YEAR==4
+  
+  generate YEAR1992=1 if YEAR==2
+  replace YEAR1992=0 if YEAR==1 | YEAR==3 | YEAR==4
+  
+  generate YEAR1982=1 if YEAR==3
+  replace YEAR1982=0 if YEAR==1 | YEAR==2 | YEAR==4
+  
+  generate YEAR1972=1 if YEAR==4
+  replace YEAR1972=0 if YEAR==1 | YEAR==2 | YEAR==3
+  
+  forvalues i = 1/4 {
+ ologit Happy c.stronglyrelig##c.childs c.chldidel##c.childs somewhatrelig $controls i.year if YEAR==`i'
+ }
+ 
+  ologit Happy c.stronglyrelig##c.childs c.chldidel##c.childs somewhatrelig $controls i.year if YEAR==1
+
+ 
+  ologit Happy c.stronglyrelig##c.childs c.chldidel##c.childs $controls i.year if YEAR==1
+
+ 
+ regress Happy c.stronglyrelig##c.childs##c.year c.chldidel##c.childs##c.year $controls i.year
+ 
+
+ global reltradother= "evangelical catholic mainline blackprotestant jewish"  //No "other faith" collinearity" 
+ 
+regress Happy c.stronglyrelig##c.childs c.chldidel##c.childs somewhatrelig $controls i.year 
+estat vif
+
+
+
+*Table 5
+ set more off
+ ologit childs $reltradother Age10 Age2 i.year if year < 2013 & case==1 //Include age, very basic. 
+ est store m1
+ ologit childs $reltradother $controls i.year if year < 2013 & case==1
+ est store m2
+ ologit childs stronglyrelig somewhatrelig $reltradother $controls  i.year if year < 2013 & case==1
+ est store m3
+ ologit chldidel $reltradother Age10 Age2 i.year if year < 2013 & case==1 //Include age, very basic. 
+ est store m4
+ ologit chldidel $reltradother $controls i.year if year < 2013 & case==1
+ est store m5
+ ologit chldidel stronglyrelig somewhatrelig $reltradother $controls  i.year if year < 2013 & case==1
+ est store m6
+ 
+ esttab m1 m2 m3  m4 m5 m6 using ChldRelSWB_Table4.rtf, replace label varwidth(25) modelwidth(3) se(2) b(2) nonumbers mtitles("Model 1 Children" "Model 2 Children" "Model 3 Children" "Model 4 Ideal # of children" "Model 5 Ideal # of children" "Model 6 Ideal # of children") title("Table 4: Number of children and religious tradition (ordered logit)") addnotes("Region-fixed effects and year-fixed effects controlled for in every model") star(+ .10 * .05 ** .01 *** .001) bic drop(*.region *.year) refcat(evangelical "\i{Religious tradition (reference categories=nonaffiliated and other faith)}" Age10 "\i{Control variables}" Black "\i{Race}" Widowed "\i{Marital status}" , nolabel) order(stronglyrelig somewhatrelig  $reltradother Age10 Age2 Male FamilyIncome YrsEduc Black OtherRace Widowed Divorced Separated Married)
+ 
+
+
+  regress Happy reltrad##c.childs c.stronglyrelig##c.childs $controls i.year
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+*There are differences in tables now. Shows that there are some. This isn't the main emphasis of this paper so I don't want to wade too far in, but it shows that there are some. Also, the Catholic significant effect disappeared when the analyses was reformulated this way, even without the Hispanic discussions, so I dropped the whole Hipanc discussion per reviewer X, Y, Z. Some non-Catholic religions do change when I control for Hispanic
+*, but these changes are retained when I use all the same cases but omit the Hispanic control, suggesting that the changes happen because the N-value shrinks, and probably because the cell size sbecome too small and are underpowered, rather than a real effect from the Hispanic control. Trashed that whole discussion. 
+
+*Earlier reviewer concern that I do it by denomination. Unforutnately, if reliten is dummied, harder to get significance from overfitting problem earlier. Denoms are insig., reduce number when doing individually. 
+*To sum, problem cited with overfitting in the model and difficulty in getting it. Separately, denominations specifically are insignificant. 	I also took care of the denominations with interaction effects. Again, problem with interaction effects.
+*I can change it from a linear perspective, and adopt a dummied variables, but in doing so I'll need to 1) not do denominational approach (try to do it and report results), and
+*Redo all tables in ms with new changes from below that are possible, then do summary stats based on final model, and do t-tests, etc. based on what they recommended. 
+
+ologit Happy c.stronglyrelig##c.childs c.somewhatrelig##c.childs c.chldidel##c.childs $controls i.year  if year < 2013  //Complete
+
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013  //Take out the somewhatrelig interaction, it gets better (take it out later, insig.)
+ologit Happy c.stronglyrelig##c.childs c.chldidel##c.childs somewhatrelig $controls i.year  if year < 2013  //Child ideal take out. 
+
+
+
+*DOING IT BY DENOMINATION DOESNT DO ANYTHING, TOO SMALL OF GROUPS. 
+
+*This is null whether I include a somewhatrelig x childs interaction. 
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013  //Complete
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & evangelical==1  //Null
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & catholic==1  //Null
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & mainline==1  //Null
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & blackprotestant==1  //Null
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & jewish==1  //Null
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & otherfaith==1  //Null
+ologit Happy c.stronglyrelig##c.childs somewhatrelig $controls i.year  if year < 2013 & mormon==1  //Null
+
+*Interactions by religious group
+
+ologit Happy c.stronglyrelig##c.childs $controls i.year  if year < 2013  //
+ologit Happy c.stronglyrelig##c.childs i.reltrad##c.childs $controls i.year  if year < 2013  //Insig reltrad interaction
+ologit Happy c.stronglyrelig##c.childs##reltrad $controls i.year  if year < 2013  //3-way also insignificant. 
+
+
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013  //Complete
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013 & evangelical==1  //Null
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013 & catholic==1  //Null
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013 & mainline==1  //Null
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013 & blackprotestant==1  //Null
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013 & jewish==1  //Null
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013 & otherfaith==1  //Null
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013 & mormon==1  //Null
+
+*Interactions by religious group
+
+ologit Happy c.religiosity##c.childs $controls i.year  if year < 2013  //
+ologit Happy c.religiosity##c.childs i.reltrad##c.childs $controls i.year  if year < 2013  //Insig reltrad interaction
+ologit Happy c.religiosity##c.childs##reltrad $controls i.year  if year < 2013  //3-way also insignificant. 
+
+
+
+*Do two IVs,  
+
+sureg (idel_inter somewhatrelig_inter stronglyrelig_inter stronglyrelig somewhatrelig childs chldidel $controls i.year) (Happy stronglyrelig somewhatrelig childs chldidel $controls i.year idel_inter stronglyrelig_inter somewhatrelig_inter) if year < 2013  //This is the version I sent to Journal of Happiness Studies
+
+nlcom [idel_inter]_b[stronglyrelig_inter]*[Happy]_b[idel_inter] //How much of it is via idel_inter
+nlcom [idel_inter]_b[somewhatrelig_inter]*[Happy]_b[idel_inter] //Insig. 
+display .0025236/ (.0025236 +.0115395)  //Proportion of total effect that is mediated. 20% of it is mediated. 
+
+*Try only one IV (the significant one, stronglyrelig_inter)
+
+sureg (idel_inter stronglyrelig_inter stronglyrelig somewhatrelig childs chldidel $controls i.year) (Happy stronglyrelig somewhatrelig childs chldidel $controls i.year idel_inter stronglyrelig_inter) if year < 2013  //This is the version I sent to Journal of Happiness Studies
+
+nlcom [idel_inter]_b[stronglyrelig_inter]*[Happy]_b[idel_inter] //How much of it is via idel_inter
+
+display .0023239 / (.0025236 +.005417)  //Proportion of total effect that is mediated. 29% of it is mediated. 
+		
+
+
+

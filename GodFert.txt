@@ -1,0 +1,99 @@
+***************Data preparation
+recode V005_01 (2=0), gen(male)
+recode V006_01 (.=.), gen(age)
+recode V008_01 (.=.), gen(marital)
+
+recode V918 (7 8=.), gen(ChurchAttend)
+replace ChurchAttend= 7-ChurchAttend
+label variable ChurchAttend "Religious Attendance"
+
+
+recode V302 (.=.), gen(childs)
+replace childs=0 if V301==2
+
+recode V603 (97 98=.), gen(childrenwanted)
+replace childrenwanted=0 if V602==2
+
+forvalues i= 1/34 {
+replace childrenwanted= V606 if V606== `i'
+}
+replace childrenwanted=0 if V605==2
+
+*I'm adding one because it asks "in addition to the child you are now expecting," so I'm 
+*including the child she is pregnant with. 
+forvalues i= 1/23 {
+replace childrenwanted= V608+1 if V608== `i'
+}
+replace childrenwanted=0 if V607==2
+
+
+
+
+*Here make explicit the fact that I'm counting 2-3 as a score of 2.5
+replace childrenwanted= 1.5 if childrenwanted==12
+replace childrenwanted= 2 if childrenwanted==13
+replace childrenwanted= 2.5 if childrenwanted==23
+replace childrenwanted=2 if childrenwanted==13
+replace childrenwanted=3 if childrenwanted==24
+replace childrenwanted=3.5 if childrenwanted==25
+replace childrenwanted=4 if childrenwanted==26
+replace childrenwanted= 3.5 if childrenwanted== 34
+replace childrenwanted= 4 if childrenwanted== 35
+replace childrenwanted= 4.5 if childrenwanted== 45
+replace childrenwanted= 5 if childrenwanted== 46
+replace childrenwanted= 5.5 if childrenwanted== 56 
+
+generate ChildrenWanted=childrenwanted
+label variable ChildrenWanted "Additional Children Wanted"
+note ChildrenWanted: This sums up the number of additional children wanted.
+generate totalchildrenwanted= ChildrenWanted + childs 
+generate fertint= totalchildrenwanted
+
+recode V931 (0 7 8 9=.), gen(religimport)
+replace religimport= 5-religimport
+
+recode V714 (7 8 9=.), gen(god)
+label variable god "Belief in God"
+label define god 1 "Personal God" 2 "Life Force" 3 "Agnostic" 4 "Atheist"
+label values god god
+
+recode V714 (2 3 4=0) (7 8 9=.), gen(personalgod)
+recode V714 (1 3 4=0) (2=1) (7 8 9=.), gen(higherpower)
+recode V714 (1 2 4=0) (3=1) (7 8 9=.), gen(agnostic)
+recode V714 (1 2 3=0) (4=1) (7 8 9=.), gen(atheist)
+
+generate Childs=childs
+label variable Childs "Number of Children"
+note Childs: This is total number of children ever born; the alternative measure includes foster care children, so this seems more clean
+generate Age=age
+generate ReligImport=religimport
+label variable ReligImport "Importance of Religion"
+note ReligImport: This is the four-level scale for importance of religion
+recode V801 (7 9=.), gen(educ)
+generate Education=educ
+generate HigherPower=higherpower
+label variable HigherPower "Life Force"
+generate Agnostic=agnostic
+label variable Agnostic "Agnostic"
+generate Atheist=atheist
+label variable Atheist "Atheist"
+generate Male=male
+generate NoBelief= Agnostic + Atheist
+generate PersonalGod=personalgod
+label variable PersonalGod "Personal God"
+recode V008_01 (2=1) (1 3 4 5=0), gen(Married)
+label variable Married "Married"
+
+recode V916 (3=1) (1 2=0) (7 8=.), gen(NotReligious)
+recode V916 (2=1) (1 3=0) (7 8=.), gen(SomewhatReligious)
+label variable SomewhatReligious "Somewhat Religious"
+
+
+recode V916 (7 8=.), gen(Religiousness)
+label variable Religiousness Religiousness
+label define Religiousness 1 "Religious" 2 "Somewhat Religious" 3 "Not Religious"
+label values Religiousness Religiousness
+
+recode V916 (2 3=0) (7 8=.), gen(Religious)
+label variable Religious "Religious"
+

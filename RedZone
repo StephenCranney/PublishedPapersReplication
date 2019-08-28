@@ -1,0 +1,269 @@
+*Replicate results
+
+cd "D:\Users\scranney\Desktop\Data\OCSLS\" //Working directory where dataset is stored
+use "csls611.dta", clear //Online College Social Life Survey dataset
+
+generate Female=1 if sex==2
+keep if Female==1
+drop if year==.
+
+generate freshman=1 if year== 1
+replace freshman=0 if year>1
+replace freshman=. if year==.
+
+replace year=6 if year==7
+
+recode year (5 4=3) (6 7=.), gen(year2)
+label variable year2 "Undergraduate year"
+label define schoolyear 1 "Freshman" 2 "Sophomore" 3 "Junior+" 
+label values year2 schoolyear
+tab year2, generate(Year)
+label variable Year1 "Freshman" 
+label variable Year2 "Sophomore" 
+label variable Year3 "Junior +" 
+*label variable Year4 "Senior" 
+
+recode sxrape (1=0) (2 3=1), gen(phys_r)
+recode sxgotout (1=0) (2 3=1), gen(attempt_phys_r)
+recode sxincap (1=0) (2 3=1), gen(drug_r)
+recode sxpress (1=0) (2 3=1), gen(verbal_r) 
+
+*Physically forced raped past year
+generate phys_r_yr=1 if phys_r==1 & (sxrpyr==year)
+replace phys_r_yr=0 if phys_r_yr==.
+replace phys_r_yr=. if (phys_r==. | (phys_r==1 & sxrpyr==.))
+
+**Physically forced raped past year-party
+generate phys_r_yr_party=1 if phys_r_yr==1 & sxrpwh==1
+replace phys_r_yr_party=0 if phys_r_yr_party==.
+replace phys_r_yr_party=. if (phys_r_yr==. | (phys_r_yr==1 & sxrpwh==.))
+
+**Physically forced raped past year-date
+generate phys_r_yr_date=1 if phys_r_yr==1 & sxrpwh==2
+replace phys_r_yr_date=0 if phys_r_yr_date==.
+replace phys_r_yr_date=. if (phys_r_yr==. | (phys_r_yr==1 & sxrpwh==.))
+
+**Physically forced raped past year-studying
+generate phys_r_yr_study=1 if phys_r_yr==1 & sxrpwh==3
+replace phys_r_yr_study=0 if phys_r_yr_study==.
+replace phys_r_yr_study=. if (phys_r_yr==. | (phys_r_yr==1 & sxrpwh==.))
+
+**Physically forced raped past year-hanging out
+generate phys_r_yr_ho=1 if phys_r_yr==1 & sxrpwh==4
+replace phys_r_yr_ho=0 if phys_r_yr_ho==.
+replace phys_r_yr_ho=. if (phys_r_yr==. | (phys_r_yr==1 & sxrpwh==.))
+
+**Physically forced raped past year-stranger
+generate phys_r_yr_stranger=1 if phys_r_yr==1 & sxrpwh==5
+replace phys_r_yr_stranger=0 if phys_r_yr_stranger==.
+replace phys_r_yr_stranger=. if (phys_r_yr==. | (phys_r_yr==1 & sxrpwh==.))
+
+*******************************************
+
+*Attempted physically forced rape past year
+generate attempt_phys_r_yr=1 if attempt_phys_r==1 & (sxgtotyr==year)
+replace attempt_phys_r_yr=0 if attempt_phys_r_yr==.
+replace attempt_phys_r_yr=. if (attempt_phys_r==. | (attempt_phys_r==1 & sxgtotyr==.))
+
+**Attempted physically forced rape past year-party
+generate attempt_phys_r_yr_party=1 if attempt_phys_r_yr==1 & sxgtotwh==1
+replace attempt_phys_r_yr_party=0 if attempt_phys_r_yr_party==.
+replace attempt_phys_r_yr_party=. if (attempt_phys_r_yr==. | (attempt_phys_r_yr==1 &  sxgtotwh==.))
+
+**Attempted physically forced rape past year-date
+generate attempt_phys_r_yr_date=1 if attempt_phys_r_yr==1 & sxgtotwh==2
+replace attempt_phys_r_yr_date=0 if attempt_phys_r_yr_date==.
+replace attempt_phys_r_yr_date=. if (attempt_phys_r_yr==. |  (attempt_phys_r_yr==1 & sxgtotwh==.))
+
+**Attempted physically forced rape past year-studying
+generate attempt_phys_r_yr_study=1 if attempt_phys_r_yr==1 & sxgtotwh==3
+replace attempt_phys_r_yr_study=0 if attempt_phys_r_yr_study==.
+replace attempt_phys_r_yr_study=. if (attempt_phys_r_yr==. | (attempt_phys_r_yr==1 &   sxgtotwh==.))
+
+**Attempted physically forced rape past year-hanging out 
+generate attempt_phys_r_yr_ho=1 if attempt_phys_r_yr==1 & sxgtotwh==4
+replace attempt_phys_r_yr_ho=0 if attempt_phys_r_yr_ho==.
+replace attempt_phys_r_yr_ho=. if (attempt_phys_r_yr==. | (attempt_phys_r_yr==1 & sxgtotwh==.))
+
+**Attempted physically forced rape past year-stranger
+generate attempt_phys_r_yr_stranger=1 if attempt_phys_r_yr==1 & sxgtotwh==5
+replace attempt_phys_r_yr_stranger=0 if attempt_phys_r_yr_stranger==.
+replace attempt_phys_r_yr_stranger=. if (attempt_phys_r_yr==. | (attempt_phys_r_yr==1 &  sxgtotwh==.))
+
+*******************************************
+
+*Drug and alcohol raped last year
+generate drug_r_yr=1 if drug_r==1 & (sxincpyr==year)
+replace drug_r_yr=0 if drug_r_yr==.
+replace drug_r_yr=. if (drug_r==. | (drug_r & sxincpyr==.))
+
+*Drug and alcohol raped last year-party
+generate drug_r_yr_party=1 if drug_r_yr==1 & sxincpwh==1
+replace drug_r_yr_party=0 if drug_r_yr_party==.
+replace drug_r_yr_party=. if (drug_r_yr==. | (drug_r_yr==1 & sxincpwh==.))
+
+*Drug and alcohol raped last year-date
+generate drug_r_yr_date=1 if drug_r_yr==1 & sxincpwh==2
+replace drug_r_yr_date=0 if drug_r_yr_date==.
+replace drug_r_yr_date=. if (drug_r_yr==. | (drug_r_yr==1 & sxincpwh==.))
+
+*Drug and alcohol raped last year-studying
+generate drug_r_yr_studying=1 if drug_r_yr==1 & sxincpwh==3
+replace drug_r_yr_studying=0 if drug_r_yr_studying==.
+replace drug_r_yr_studying=. if (drug_r_yr==. | (drug_r_yr==1 & sxincpwh==.))
+
+*Drug and alcohol raped last year-hanging out 
+generate drug_r_yr_ho=1 if drug_r_yr==1 & sxincpwh==4
+replace drug_r_yr_ho=0 if drug_r_yr_ho==.
+replace drug_r_yr_ho=. if (drug_r_yr==. | (drug_r_yr==1 & sxincpwh==.))
+
+*Drug and alcohol raped last year-stranger
+generate drug_r_yr_stranger=1 if drug_r_yr==1 & sxincpwh==5
+replace drug_r_yr_stranger=0 if drug_r_yr_stranger==.
+replace drug_r_yr_stranger=. if (drug_r_yr==. | (drug_r_yr==1 & sxincpwh==.))
+
+*******************************************
+
+*Verbally pressured last year
+generate verbal_r_yr=1 if verbal_r==1 & (sxprssyr==year)
+replace verbal_r_yr=0 if verbal_r_yr==.
+replace verbal_r_yr=. if (verbal_r==. | (verbal_r==1 & sxprssyr==.))
+
+*Verbally pressured last year-party
+generate verbal_r_yr_party=1 if verbal_r_yr==1 & sxprsswh==1
+replace verbal_r_yr_party=0 if verbal_r_yr_party==.
+replace verbal_r_yr_party=. if (verbal_r_yr==. | (verbal_r_yr==1 & sxprsswh==.))
+
+*Verbally pressured last year-date
+generate verbal_r_yr_date=1 if verbal_r_yr==1 & sxprsswh==2
+replace verbal_r_yr_date=0 if verbal_r_yr_date==.
+replace verbal_r_yr_date=. if (verbal_r_yr==. | (verbal_r_yr==1 & sxprsswh==.))
+
+*Verbally pressured last year-studying
+generate verbal_r_yr_study=1 if verbal_r_yr==1 & sxprsswh==3
+replace verbal_r_yr_study=0 if verbal_r_yr_study==.
+replace verbal_r_yr_study=. if (verbal_r_yr==. | (verbal_r_yr==1 & sxprsswh==.))
+
+*Verbally pressured last year-hanging out
+generate verbal_r_yr_ho=1 if verbal_r_yr==1 & sxprsswh==4
+replace verbal_r_yr_ho=0 if verbal_r_yr_ho==.
+replace verbal_r_yr_ho=. if (verbal_r_yr==. | (verbal_r_yr==1 & sxprsswh==.))
+
+*Verbally pressured last year-stranger
+generate verbal_r_yr_stranger=1 if verbal_r_yr==1 & sxprsswh==5
+replace verbal_r_yr_stranger=0 if verbal_r_yr_stranger==.
+replace verbal_r_yr_stranger=. if (verbal_r_yr==. | (verbal_r_yr==1 & sxprsswh==.))
+
+***************Aggregated by context
+generate stranger_r_yr= drug_r_yr_stranger + attempt_phys_r_yr_stranger + phys_r_yr_stranger + verbal_r_yr_stranger
+recode stranger_r_yr (2 3 4 5 6 7 8 9=1), gen(stranger_r_yr_re)
+
+generate ho_r_yr= drug_r_yr_ho + verbal_r_yr_ho + attempt_phys_r_yr_ho + phys_r_yr_ho
+recode ho_r_yr (2 3 4 5 6 7 8 9=1), gen(ho_r_yr_re)
+
+generate study_r_yr= phys_r_yr_study + drug_r_yr_studying + attempt_phys_r_yr_study + verbal_r_yr_study
+recode study_r_yr (2 3 4 5 6 7 8 9=1), gen(study_r_yr_re)
+
+generate date_r_yr=  drug_r_yr_date + attempt_phys_r_yr_date+ verbal_r_yr_date + phys_r_yr_date
+recode date_r_yr (2 3 4 5 6 7 8 9=1), gen(date_r_yr_re)
+
+generate party_r_yr= drug_r_yr_party + attempt_phys_r_yr_party + phys_r_yr_party // +  verbal_r_yr_party
+recode party_r_yr (2 3 4 5 6 7 8 9=1), gen(party_r_yr_re)
+
+label define school2 0 "Stanford" 1 "Indiana" 2 "Arizona" 3 "Stony Brook" 4 "Ithaca" 5 "Evergreen" 6 "UC-Santa Barbara" 7 "U Mass" 8 "Ohio Stata U" 9 "Whitman" 10 "Foothill" 11 "Harvard" 12 "UI-Chicago" 13 "Framingham" 14 "Radford" 15 "Beloit" 16 "Riverside" 17 "UPenn" 18 "Washington" 19 "UC Merced" 20 "MTSU" 21 "Carroll" 
+
+label values school school2
+tab school, gen(School) 
+
+label variable School1 "Stanford"
+label variable School2 "Indiana"
+label variable School3 "Arizona" 
+label variable School4 "Stony Brook"
+label variable School5 "Ithaca" 
+label variable School6 "Evergreen"
+label variable School7 "Santa Barbara"
+label variable School8 "U Mass"
+label variable School9 "Ohio State"
+label variable School10 "Whitman"
+label variable School11 "Foothill"
+label variable School12 "Harvard"
+label variable School13 "UI Chicago"
+label variable School14 "Framingham" 
+label variable School15 "Radford" 
+label variable School16 "Beloit" 
+label variable School17 "Riverside" 
+label variable School18 "UPenn"
+label variable School19 "Washington"
+label variable School20 "Merced"
+label variable School21 "MTSU"
+label variable School22 "Carroll" 
+
+label variable phys_r_yr_party "Forced, party"
+label variable drug_r_yr_party "DFSA, party"
+label variable verbal_r_yr_party "Verbal, party"
+label variable attempt_phys_r_yr_party "Attempt forced, party"
+label variable phys_r_yr_ho "Forced, hang out"
+label variable attempt_phys_r_yr_ho "Attempted forced, hang out"
+label variable drug_r_yr_ho "DFSA, hang out"
+label variable verbal_r_yr_ho "Verbal, hang out"
+
+*****************************************
+*Analysis
+*****************************************
+
+keep if Female==1
+
+global year= "Year1 Year2" 
+global school= "School1-School21"
+
+*"Summing across victimization types..."
+tab stranger_r_yr_re 
+tab ho_r_yr_re 
+tab study_r_yr_re 
+tab date_r_yr_re 
+tab party_r_yr_re 
+
+*Table 1
+estpost tabstat phys_r_yr_party attempt_phys_r_yr_party drug_r_yr_party verbal_r_yr_party phys_r_yr_ho attempt_phys_r_yr_ho drug_r_yr_ho verbal_r_yr_ho, by(school) statistics(sum) 
+
+*Table 2
+tabulate  phys_r_yr_party year2
+tabulate  attempt_phys_r_yr_party year2
+tabulate  drug_r_yr_party year2
+tabulate  verbal_r_yr_party year2
+tabulate  phys_r_yr_ho year2
+tabulate  attempt_phys_r_yr_ho year2
+tabulate  drug_r_yr_ho year2
+tabulate  verbal_r_yr_ho year2
+
+*Table 3
+logit phys_r_yr_party $year $school, or
+est store m1 
+logit attempt_phys_r_yr_party $year $school, or
+est store m2
+logit drug_r_yr_party $year $school, or
+est store m3
+logit verbal_r_yr_party $year $school, or
+est store m4
+
+esttab m1 m2 m3 m4 using CollRape_party.rtf, replace title(Table 3: Sexual victimization at a party (logistic regression, odds ratios)) ///
+  label eform se(3) numbers constant  drop (School**) varwidth(10) modelwidth(4) ///
+  star(+ .10 * .05 ** .01 *** .001) bic scalars( "chi2 Chi squared" "ll Log-likelihood") addnotes(School fixed effects included in every model)
+
+*Table 4
+logit phys_r_yr_ho $year $school, or
+est store m1 
+logit attempt_phys_r_yr_ho $year $school, or
+est store m2
+logit drug_r_yr_ho $year $school, or
+est store m3
+logit verbal_r_yr_ho $year $school, or
+est store m4
+
+esttab m1 m2 m3 m4 using CollRape_ho.rtf, replace title(Table 4: Sexual victimization while hanging out (logistic regression, odds ratios)) ///
+  label eform se(3) numbers constant  drop (School**) varwidth(10) modelwidth(4) ///
+  star(+ .10 * .05 ** .01 *** .001) bic scalars( "chi2 Chi squared" "ll Log-likelihood") addnotes(School fixed effects included in every model)
+
+  
+  *Testing two schools that do not have Greek systems
+logit attempt_phys_r_yr_party $year $school if (school==13 | school==10), or

@@ -1,0 +1,398 @@
+cd C:\Users\scranney\Desktop
+
+clear all
+
+set maxvar 10000
+
+use "GSS7214_R5", clear
+
+set more off
+
+recode sex (2=0), generate(male)
+
+*educ, raw years of education
+tab degree, gen(deg)
+clonevar lthighschool= deg1
+clonevar highschool=deg2
+clonevar juniorcollege= deg3
+clonevar bachelor= deg4
+clonevar graduate= deg5
+
+*coninc= family income in constant dollars
+*conrinc= personal income in constant dollars
+
+tab race, gen(Race)
+clonevar white= Race1
+clonevar black= Race2
+clonevar otherrace= Race3
+
+label variable black "Black"
+label variable otherrace "Other race"
+
+
+recode hispanic (2/50=1) (1=0), gen(Hispanic)
+label variable Hispanic "Hispanic"
+
+generate Pray= 7-pray
+label variable Pray "Frequency of prayer (1=never to 6=several x/day"
+
+generate SpiritualPerson= 5-sprtprsn
+label variable SpiritualPerson "Spiritual person (1=not spiritual to 4=very spiritual)"
+
+*childs for children
+label variable childs "Number of children"
+
+tab marital, gen(Marital)
+clonevar married =Marital1
+clonevar  widow = Marital2
+clonevar divorced  = Marital3
+clonevar separated  = Marital4
+clonevar nevermarried  = Marital5
+
+label variable married "Married" 
+
+tab region, generate (RegionZ)
+label variable RegionZ1 "New England"
+label variable RegionZ2 "Middle Atlantic"
+label variable RegionZ3 "East North Central"
+label variable RegionZ4 "West North Central"
+label variable RegionZ5 "South Atlantic"
+label variable RegionZ6 "East South Central"
+label variable RegionZ7 "West South Central"
+label variable RegionZ8 "Mountain"
+label variable RegionZ9 "Pacific" 
+
+tab god, generate(godY)
+
+recode god (1 2= 1) (3=2) (4 5=3) (6= 4), gen(god2)
+label define god2 1 "NoGod" 2 "HigherPower" 3 "BelievesDoubt" 4 "KnowGodExists"
+tab god2, gen(godx)
+rename godx1 NoBelief
+label variable NoBelief "No belief"
+
+rename godx2 HigherPower
+label variable HigherPower "Higher power" 
+
+rename godx3 BelieveDoubts
+label variable BelieveDoubts "Believes-doubts"
+
+rename godx4 KnowsGodExists
+label variable KnowsGodExists "Knows God exists"
+
+recode nihilism (1 2 3 4 =0) (5=1), gen(nihilismlogit)
+label variable nihilismlogit
+label variable nihilismlogit "Life has meaning"
+label variable nihilism "No purpose (1=strongly agree to 5=strongly disagree)"
+
+recode nihilism (1 2 3=1) (4=2) (5=3), gen(nihilism2)
+recode nihilism2 (2 3=0), gen(nihilismlow)
+recode nihilism2 (1 3=0) (2=1), gen(nihilismmiddle)
+recode nihilism2 (1 2=0) (3=1), gen(nihilismhigh)
+
+recode nihilism (1 2 3=1) (4 5=0), gen(nihilism4)
+
+tab race, generate(racex)
+rename racex1 White
+label variable White "White"
+rename racex2 Black
+label variable Black "Black"
+rename racex3 OtherRace
+label variable OtherRace "Other race"
+
+tab year, gen(yrx)
+tab region, gen(regionZ)
+
+generate Happy= 4-happy
+
+generate ReligiousPerson= 5-relpersn
+
+label variable ReligiousPerson "Religiosity"
+*label variable ReligiousPerson "Religious person (1=not religious to 4= very religious)"
+
+label variable attend "Attend (0=never to 8=>1/wk)"
+
+generate Male=1 if sex==1
+replace Male=0 if sex==2
+
+rename age Age
+generate Age10= Age/10
+label variable Age10 "Age (/10)"
+
+rename income Income
+
+recode family16 (2 3 4 5 6 7 8=0), gen(twobio)
+
+recode coninc (.=.), generate(FamilyIncome)
+replace FamilyIncome= FamilyIncome/10000
+label variable FamilyIncome "Family income (/10,000), yr 2000 dollars"
+
+rename educ YrsEduc
+label variable YrsEduc "Years of education"
+
+replace chldnum=0 if chldmore==2
+
+generate noreligion=1 if reliten==4
+replace noreligion=0 if reliten==1
+replace noreligion=0 if reliten==2
+replace noreligion=0 if reliten==3
+
+recode relig (2 3 5 6 7 8 9 10 11 12 13=1) (4=0), gen(affiliated)
+label variable affiliated "Affiliated with a religion"
+
+generate FeelGod= 7-feelgod
+
+recode frndcon1 (2 3=0) (4=.), gen(F1)
+recode frndcon2 (2 3=0) (4=.), gen(F2)
+recode frndcon3 (2 3=0) (4=.), gen(F3)
+recode frndcon4 (2 3=0) (4=.), gen(F4)
+
+generate ChurchFriends= F1 + F2 + F3 + F4
+
+generate CongHelps= 5-conghlp2
+label variable CongHelps "Cong helps"
+
+generate religcomfort= 7-relcmfrt
+label variable religcomfort "Relig comfort" 
+
+recode marital (2 3 4 5=0), gen(Married)
+label variable Married "Married" 
+recode marital (1 3 4 5=0) (2=1), gen(Widowed)
+label variable Widowed "Widowed"
+recode marital (1 2 4 5=0) (3=1), gen(Divorced)
+label variable Divorced "Divorced"
+recode marital (1 2 3 5=0) (4=1), gen(Separated)
+label variable Separated "Separated"
+recode marital (1 2 3 4=0) (5=1), gen(NeverMarried)
+label variable NeverMarried "Never married" 
+
+recode childs (2 3 4 5 6 7 8=1), gen(parent)
+label variable parent "Parenthood"
+label define parent1 1 "Parent" 0 "No children"
+label values parent parent1
+
+generate Theism= 6-theism
+
+label define Happy1 1 "Not too happy" 2 "Pretty happy" 3 "Very happy"
+label values  Happy Happy1
+
+label variable chldidel "Ideal # of children"
+
+recode reltruth (2 3=0), gen(littleTruth)
+label variable littleTruth "Little rel truth"
+
+recode reltruth (1 3=0) , gen(manyTruth)
+label variable manyTruth "Many relig truth"
+
+recode reltruth (1 2=0), gen(oneTruth)
+label variable oneTruth "One relig truth"
+
+generate Godmeans= 6-godmeans
+label variable Godmeans "God meaning (1=strongly disagree to 5= strongly agree)"
+
+generate Religiousness= 5-reliten
+
+generate Age2= Age10^2
+
+recode childs (0=1) (1 2 3 4 5 6 7 8=0), gen(childless)
+
+
+
+tab wrkstat, gen(WORK)
+rename WORK1 fulltime
+label variable fulltime "Working full time"
+rename WORK2 parttime
+label variable parttime "Working part time"
+rename WORK3 tempnotworking 
+label variable tempnotworking "Temporarily not working"
+rename WORK4 unemployed 
+label variable unemployed "Unemployed"
+rename WORK5 retired 
+label variable retired "Retired"
+rename WORK6 student
+label variable student "Student"
+rename WORK7 SAHM
+label variable SAHM "Stay-at-home parent"
+rename WORK8 other_wrk
+label variable other_wrk "Other"
+
+tab fund, gen(FUND)
+rename FUND1 fundamentalist
+rename FUND2 moderate
+rename FUND3 liberal
+
+tab fund16, gen(FUND16)
+rename FUND161 fundamentalist16
+rename FUND162 moderate16
+rename FUND163 liberal16
+
+
+label variable year Year
+
+generate mormon=1 if other==64
+replace mormon=0 if mormon==.
+replace mormon=. if relig==. | (relig==5 | other==.)
+label variable mormon Mormon
+
+generate exmormon=1 if oth16==64 & other!=64
+replace exmormon=0 if exmormon==.
+replace exmormon=. if oth16==. | other==.
+
+generate childhome= 1 if ((babies!=. & babies!=0) | (preteen!=. & preteen!=0) |  (teens!=. & teens!=0))
+replace childhome=0 if babies==0 & preteen==0 & teens==0
+
+generate childsathome= babies + preteen + teens
+
+generate SAHM_child=1 if SAHM==1 & childhome==1
+replace SAHM_child=0 if wrkstat!=. & SAHM_child==.
+
+generate SAHM_nochild=1 if SAHM==0 & childhome==0
+replace SAHM_nochild=0 if wrkstat!=. & SAHM_nochild==.
+
+label variable SAHM_child "Homekeeper with children" 
+label variable SAHM_nochild "Homekeeper without children"
+
+*Quickly check atheist backlash relationship. 
+logit NoBel BelieveDoubts HigherPower Age10 Male Black OtherRace FamilyIncome YrsEduc exmormon i.fund16 if year>2010, or
+
+
+*************************************Stata code for Reltrad from Steensland, Brian, Lynn D. Robinson, W. Bradford Wilcox, Jerry Z. Park, Mark D. Regnerus, and Robert D. Woodberry. "The measure of American religion: Toward improving the state of the art." Social Forces 79, no. 1 (2000): 291-318.
+*http://www.indiana.edu/~soc/pdf/RELTRADsyntax_3versions.pdf
+
+* The following code breaks down religious groups by Protestant, Catholic,etc.*
+gen xaffil=relig
+recode xaffil 1=1 2=4 3=5 4=9 5/10=6 11=1 12=6 13=1 *=.
+label def xaffil 1 prot 4 cath 5 jew 6 other 9 nonaf
+label values xaffil xaffil 
+
+* The following code breaks down religious groups by evangelicals, black*
+* Protestants, mainline, liberaland conservative nontraditional, *
+* and Protestant nondenomination/no denomination.*
+* Black Protestants*
+gen xbp=other
+recode xbp 7 14 15 21 37 38 56 78 79 85 86 87 88 98 103 104 128 133=1 *=0
+recode xbp 0=1 if denom==12
+recode xbp 0=1 if denom==13
+recode xbp 0=1 if denom==20
+recode xbp 0=1 if denom==21
+gen bl=race
+recode bl 2=1 *=0 
+gen bldenom=denom*bl
+recode xbp 0=1 if bldenom==23
+recode xbp 0=1 if bldenom==28
+recode xbp 0=1 if bldenom==18
+recode xbp 0=1 if bldenom==15
+recode xbp 0=1 if bldenom==10
+recode xbp 0=1 if bldenom==11
+recode xbp 0=1 if bldenom==14
+gen blother=other*bl
+recode xbp 0=1 if blother==93 
+
+* Evangelical Protestants*
+gen xev=other
+recode xev 2 3 5 6 9 10 12 13 16 18 20 22 24 26 27 28 31 32 34 35 36 39 41 42 43 45 47 51 52 53 55 57 63 65 66 67 68 69 76 77 83 84 90 91 92 94 97 100 101 102 106 107 108 109 110 111 112 115 116 117 118 120 121 122 124 125 127 129 131 132 134 135 138 139 140 146=1 *=0
+recode xev 0=1 if denom==32
+recode xev 0=1 if denom==33
+recode xev 0=1 if denom==34
+recode xev 0=1 if denom==42
+gen wh=race
+recode wh 1=1 2=0 3=1
+gen whdenom=denom*wh
+recode xev 0=1 if whdenom==23
+recode xev 0=1 if whdenom==18
+recode xev 0=1 if whdenom==15
+recode xev 0=1 if whdenom==10
+recode xev 0=1 if whdenom==14
+gen whother=other*wh 
+recode xev 0=1 if whother==93
+
+recode xev 1=0 if xbp==1
+* Mainline Protestants*
+gen xml=other
+recode xml 1 8 19 23 25 40 44 46 48 49 50 54 70 71 72 73 81 89 96 99 105 119 148 =1
+*=0
+recode xml 0=1 if denom==22
+recode xml 0=1 if denom==30
+recode xml 0=1 if denom==31
+recode xml 0=1 if denom==35
+recode xml 0=1 if denom==38
+recode xml 0=1 if denom==40
+recode xml 0=1 if denom==41
+recode xml 0=1 if denom==43
+recode xml 0=1 if denom==48
+recode xml 0=1 if denom==50
+recode xml 0=1 if whdenom==11
+recode xml 0=1 if whdenom==28 
+
+* Catholics*
+gen xcath=other
+recode xcath 123=1 *=0 
+recode xcath 0=1 if xaffil==4
+* Jews*
+gen xjew=0
+recode xjew 0=1 if xaffil==5
+* Adherents of other religions.*
+gen xother=other
+recode xother 11 17 29 30 33 58 59 60 61 62 64 74 75 80 82 95 113 114 130 136 141 145=1 *=0
+gen noxev=1-xev
+gen noxevxaf=noxev*xaffil
+recode xother 0=1 if noxevxaf==6
+* Unaffiliateds/Nonaffiliateds.* 
+
+gen xnonaff=xaffil
+recode xnonaff 9=1 *=0
+* NOTE: THE FOLLOWING DEALS WITH NO-DENOM AND *
+* NON-DENOM PROTESTANTS.*
+gen xprotdk=denom
+recode xprotdk 70=1 *=0
+recode xprotdk 1=0 if attend==0
+recode xprotdk 1=0 if attend==1
+recode xprotdk 1=0 if attend==2
+recode xprotdk 1=0 if attend==3
+recode xprotdk 1=0 if attend==9
+recode xprotdk 1=0 if attend==.
+recode xev 0=1 if xprotdk==1 
+
+* Following does RELTRAD.*
+gen reltrad=0
+recode reltrad 0=7 if xnonaf==1
+recode reltrad 0=6 if xother==1
+recode reltrad 0=5 if xjew==1
+recode reltrad 0=4 if xcath==1
+recode reltrad 0=3 if xbp==1
+recode reltrad 0=2 if xml==1
+recode reltrad 0=1 if xev==1
+recode reltrad 0=. 
+
+label def reltrad 1 "evangelical" 2 "mainline" 3 "black protestant" 4 "catholic" 5 "jewish" 6 "other faith" 7 "nonaffiliated"
+label values reltrad reltrad 
+****************
+
+tab reltrad, generate(RELTRAD)
+rename RELTRAD1 evangelical
+label variable evangelical "Evangelical"
+rename RELTRAD2 mainline
+label variable mainline "Mainline"
+rename RELTRAD3 blackprotestant
+label variable blackprotestant "Black Protestant"
+rename RELTRAD4 catholic
+label variable catholic "Catholic"
+rename RELTRAD5 jewish
+label variable jewish "Jewish"
+rename RELTRAD6 otherfaith
+label variable otherfaith "Other faith"
+rename RELTRAD7 nonaffiliated
+label variable nonaffiliated "Non-affiliated"
+
+generate gay=1 if male==1 & sexsex5==1
+replace gay=1 if male==0 & sexsex5==3
+replace gay=0 if male==1 & sexsex5==3
+replace gay=0 if male==0 & sexsex5==1
+
+
+*replace malegay=1 if male==
+*generate femalegay=1 if male==0 & sexsex5==3
+*generate bisexual=1 if sexsex5==2
+
+recode partners (9=.), gen(PARTN)
+
+********************************************

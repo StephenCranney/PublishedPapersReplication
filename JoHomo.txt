@@ -1,0 +1,602 @@
+clear all
+
+cd "C:\Users\scranney\Desktop" //Got this using usesas command
+*use13 y14cdc_3.dta, clear
+use year14.dta, clear
+set more off
+rename _llcpwt A_LLCPWT
+rename ctycode1 CTYCODE1 
+rename _psu A_PSU
+rename renthom1 RENTHOM1
+rename cpdemo1 CPDEMO1
+rename  _hispanc HISPANC2
+
+tab avedrnk2 
+tab physhlth
+
+rename _prace A_PRACE
+
+rename employ1 employ
+rename income2 INCOME2
+
+replace sexor=-1 if sexor==1 //They changed the sexual orientation categories across year, see email. 
+replace sexor=1 if sexor==2
+replace sexor=2 if sexor==-1 
+
+append using y12cdcreduced.dta, generate(waves)
+
+recode HISPANC2 (7 9=.) (2=0), gen(hispanic)
+label variable hispanic "Hispanic" //Explain in MS that this category is not exclusive to race. 
+
+generate strata2= A_STSTR + 201300000 if waves==1
+replace strata2= _ststr + 201400000 if waves==0
+
+svyset A_PSU [pweight=A_LLCPWT], strata(strata2)  
+
+recode _rfdrhv4 (2=1) (1=0) (9=.), gen(drink14)
+recode A_RFDRHV4  (2=1) (1=0) (9=.), gen(drink1213)
+
+generate heavydrink= drink1213 
+replace heavydrink= drink14 if year==2014
+
+recode avedrnk2 (77 99=.), gen(DRINK14)
+recode AVEDRNK2 (77 99=.), gen(DRINK1213)
+
+generate drinkav= DRINK1213
+replace drinkav= DRINK14 if year==2014
+
+recode _smoker3 (9=.), gen(smoke14)
+recode A_SMOKER3 (9=.), gen(smoke1213)
+
+generate smoker= smoke1213
+replace smoker= smoke14 if year==2014
+
+replace smoker= 5-smoker
+
+recode children (88=0) (99=.), gen(CHILDS)
+label variable CHILDS "# children at home"
+
+*employment 
+recode employ (9=.), gen(EMPLOY)
+tab EMPLOY, gen(employZX)
+label variable employZX1 "Employed"
+label variable employZX2 "Self-employed"
+label variable employZX3 "Long term unemployed"
+label variable employZX4 "Short term unemployed"
+label variable employZX5 "Homemaker"
+label variable employZX6 "Student"
+label variable employZX7 "Retired"
+label variable employZX8 "Unable to work"
+
+generate unemployed= employZX3 + employZX4
+label variable unemployed "Unemployed"
+
+generate Employed= employZX1 + employZX2
+label variable Employed "Employed"
+
+*educa
+recode educa (9=.), gen(educ)
+label variable educ "Education"
+
+generate educ2= educ^2
+label variable educ2 "Education^2"
+*1="Never attended school or only attended Kindergarten"  2="Grades1-8"  3="Grades 9-11"  4="Grade 12 or GED"  5="College 1 year to 3 years"  6="College 4 years or more"  9="Refused"
+
+generate logeduc= ln(educ)
+label variable logeduc "Education (logged)"
+
+*INCOME2
+recode INCOME2 (77 99=.), gen(income)
+label variable income "Income"
+*01="<$10,000 "  02="$10,000 to <$15,000"  03="$15,000 to <$20,000"  04="$20,000 to <$25,000"  05="$25,000 to <$35,000"  06="$35,000 to <$50,000"  07="$50,000 to <$75,000"  08="$75,000+"   77="Don't know/Not sure"  99="Refused"
+
+*Race
+recode A_PRACE (77 99=.), gen(RACE)
+tab RACE, gen(raceZ)
+label variable raceZ1 "White"
+label variable raceZ2 "Black"
+label variable raceZ3 "Asian"
+label variable raceZ4 "Native Hawaiian"
+label variable raceZ5 "American Indian"
+label variable raceZ6 "Other race"
+label variable raceZ7 "No preferred race"
+*label variable race8 "Multiracial, preferred race not asked" It's in the codebook, but it doesn't appear that anyone selected the option for either one. 
+
+*marital
+recode marital (9=.), gen(marital2)
+tab marital2, gen(MAR)
+label variable MAR1 "Married"
+label variable MAR2 "Divorced"
+label variable MAR3 "Widowed"
+label variable MAR4 "Separated"
+label variable MAR5 "Never married"
+label variable MAR6 "Unmarried couple"
+
+recode CTYCODE1 (777 999=.), gen(cntyZ)
+tab cntyZ, gen(cnty) 
+
+recode age (7 9 = .), generate(AGE)
+label variable AGE "Age"
+
+*Insert percentage LDS maybe for later
+
+*relig
+recode relig (77 99=.), gen(reldenom)
+tab reldenom, gen(reldenomZ)
+rename reldenomZ4 mormon 
+rename reldenomZ5 none
+label variable mormon "Mormon"
+label variable non "None" 
+
+*religact
+
+*Look at email chain, drop religact values for 2014 that are inexplicible (Utah database people's suggestion)
+replace religact=. if religact<100
+
+recode religact (888=0) (777 999=.), gen(relattend)
+label variable relattend "Religious attendance"
+
+generate relattend2=0 if relattend==0
+replace relattend2= ((relattend-100)*365) if relattend<200 & relattend>99 //
+replace relattend2= ((relattend-200) * 52.18) if relattend<300 & relattend>199
+replace relattend2= ((relattend-300) * 12) if relattend<400 & relattend>299
+replace relattend2= relattend-400 if relattend>399
+
+*1 _ _="Per day" 2_ _="Per week" 3_ _="Per month" 4_ _="Per year" 888="Never" 777="Don't know/Not sure"  999="Refused"
+*Do this based on the GSS scale for attend
+
+*Bsaed on GSS scale, but had to collapse some points, to make it cover full range of numbers. see below)
+generate relattend3=0 if relattend2==0		//Email, guy said to make it into different categories, don't use averages. This one, never (less than once a year option isn't there)
+replace relattend3=1 if relattend2==1 //Once a year
+replace relattend3=2 if relattend2>1 & relattend2<12 //Several times a year
+replace relattend3=3 if relattend2>11 & relattend2<24 //1-2 times a month (GSS equiv between once a month and 2-3x month). 
+replace relattend3=4 if relattend2>23 & relattend2<37 //2-3 times a month
+replace relattend3=5 if relattend2>36 & relattend2<52 //Almost every week
+replace relattend3=6 if relattend2>52 & relattend2<53  //Every week
+replace relattend3=7 if relattend2>53 //More than once a week
+replace relattend3=. if relattend2==.
+
+*sex
+recode sex(2=0), gen(male)
+recode sex (1=0) (2=1), gen(female)
+label variable male "Male"
+
+*sexor
+tab sexor, gen(orient)
+rename orient1 heterosexual
+label variable heterosexual "Heterosexual"
+rename orient2 homosexual
+label variable homosexual "Homosexual"
+rename orient3 bisexual
+label variable bisexual "Bisexual"
+rename orient4 somethingelse
+label variable somethingelse "Something else"
+rename orient5 dk
+label variable dk "Don't know"
+rename orient6 refused
+label variable refused "Refused"
+
+generate sexualminority= homosexual + bisexual + somethingelse + dk
+generate LGB= homosexual + bisexual
+
+*Self-rated general health
+recode genhlth (7 9=.), gen(health)
+replace health= 6-health
+label variable health "Self-rated health"
+*1="Excellent"  2="Very Good"  3="Good"  4="Fair"  5="Poor"  7="Don't know/Not sure"  9="Refused"
+
+*Mental health sick days
+recode menthlth (88=0) (77 99=.), gen(mental)
+label variable mental "# days poor mental health"
+
+generate fmd = 1 if mental> 13 & mental!=.
+replace fmd=0 if mental<14 & mental!=.
+
+*Physical health sick days
+recode physhlth (88=0) (77 99=.), gen(PHYSICAL)
+label variable PHYSICAL "# days poor physical health"
+
+*Poor health sick days
+recode poorhlth (88=0) (77 99=.), gen(poorhealthdays)
+
+
+generate totalsickdays= PHYSICAL + mental
+replace totalsickdays=30 if totalsickdays>30
+
+global familystats= "percentMAR1-percentMAR6"
+global racestats= "percentraceZ1 percentrace_nonwhite percenthispanic"
+global employmentstats= "percentEmployed percentunemployed percentemployZX5-percentemployZX8"
+
+global controls= "income AGE educ male cnty** CHILDS MAR2-MAR6 raceZ1 race_nonwhite hispanic unemployed employZX5-employZX8"
+global summarycontrols= "income AGE educ male cnty** CHILDS MAR1-MAR6 raceZ1 race_nonwhite hispanic Employed unemployed employZX5-employZX8"
+global demo= "income AGE educ male"
+global family= "CHILDS MAR2-MAR6"
+global racesummary= "raceZ1 race_nonwhite hispanic"
+global employmentsummary= "Employed unemployed employZX5-employZX8"
+
+
+generate race_nonwhite= raceZ2 + raceZ3 + raceZ4 + raceZ5 + raceZ6 + raceZ7
+label variable race_nonwhite "Non-White"
+global race= "race_nonwhite hispanic"
+global employment= "unemployed employZX5-employZX8"
+global ownership= "CELLPHONE** RENT1 RENT2"
+
+foreach var of varlist $racesummary $employmentsummary MAR1-MAR6 {
+generate percent`var'= `var'*100
+}
+
+label variable percentrace_nonwhite "Non-White (%)"
+label variable percentraceZ1 "White %"
+label variable percenthispanic "Hispanic ethnicity (%)"
+
+label variable percentMAR1 "Married (%)"
+label variable percentMAR2 "Divorced (%)"
+label variable percentMAR3 "Widowed (%)"
+label variable percentMAR4 "Separated (%)"
+label variable percentMAR5 "Never married (%)"
+label variable percentMAR6 "Unmarried couple (%)"
+
+label variable percentraceZ1 "White (%)"
+
+label variable percentemployZX5 "Homemaker (%)"
+label variable percentemployZX6 "Student (%)"
+label variable percentemployZX7 "Retired (%)"
+label variable percentemployZX8 "Unable to work (%)"
+label variable percentEmployed "Employed (%)"
+label variable percentunemployed "Unemployed (%)"
+
+*Percent LDS
+
+generate percLDS=.
+
+replace percLDS= 		0.70	if CTYCODE1==		1
+replace percLDS= 		0.78	if CTYCODE1==		3
+replace percLDS= 		0.74	if CTYCODE1==		5
+replace percLDS= 		0.47	if CTYCODE1==		7
+replace percLDS= 		0.60	if CTYCODE1==		9
+replace percLDS= 		0.71	if CTYCODE1==		11
+replace percLDS= 		0.68	if CTYCODE1==		13
+replace percLDS= 		0.70	if CTYCODE1==		15
+replace percLDS= 		0.70	if CTYCODE1==		17
+replace percLDS= 		0.27	if CTYCODE1==		19
+replace percLDS= 		0.61	if CTYCODE1==		21
+replace percLDS= 		0.77	if CTYCODE1==		23
+replace percLDS= 		0.55	if CTYCODE1==		25
+replace percLDS= 		0.76	if CTYCODE1==		27
+replace percLDS= 		0.86	if CTYCODE1==		29
+replace percLDS= 		0.63	if CTYCODE1==		31
+replace percLDS= 		0.85	if CTYCODE1==		33
+replace percLDS= 		0.51	if CTYCODE1==		35
+replace percLDS= 		0.40	if CTYCODE1==		37
+replace percLDS= 		0.68	if CTYCODE1==		39
+replace percLDS= 		0.78	if CTYCODE1==		41
+replace percLDS= 		0.31	if CTYCODE1==		43
+replace percLDS= 		0.60	if CTYCODE1==		45
+replace percLDS= 		0.57	if CTYCODE1==		47
+replace percLDS= 		0.82	if CTYCODE1==		49
+replace percLDS= 		0.60	if CTYCODE1==		51
+replace percLDS= 		0.62	if CTYCODE1==		53
+replace percLDS= 		0.75	if CTYCODE1==		55
+replace percLDS= 		0.53	if CTYCODE1==		57
+
+generate LGBMormon=1 if LGB==1 & mormon==1
+
+generate noLGBMormon=1 if LGB==0 & mormon==1
+replace noLGBMormon=0 if LGBMormon==1
+
+generate LGBnoMormon=1 if LGB==1 & mormon==0
+replace LGBnoMormon=0 if LGBMormon==1
+
+generate noLGBnoMormon=1 if LGB==0 & mormon==0
+replace noLGBnoMormon=0 if LGBMormon==1
+
+label variable relattend3 "Religious service attendance"
+
+generate noLGBMormon2= noLGBMormon
+replace noLGBMormon2=0 if LGBMormon==1 | LGBnoMormon==1 | noLGBnoMormon==1
+label variable noLGBMormon2 "Non-LGB Mormon"
+
+generate LGBMormon2= LGBMormon
+replace LGBMormon2=0 if noLGBMormon==1 | LGBnoMormon==1 | noLGBnoMormon==1
+label variable LGBMormon2 "LGB Mormon"
+
+generate LGBnoMormon2=LGBnoMormon
+replace LGBnoMormon2= 0 if noLGBMormon==1 | LGBMormon==1 | noLGBnoMormon==1
+label variable LGBnoMormon2 "LGB non-Mormon"
+
+generate noLGBnoMormon2 =noLGBnoMormon
+replace noLGBnoMormon2= 0 if noLGBMormon==1 | LGBMormon==1 | LGBnoMormon==1
+label variable noLGBnoMormon2 "Non-LGB non-Mormon"
+
+generate RelOrient= 1 if LGBMormon==1
+replace RelOrient=2 if noLGBMormon==1
+replace RelOrient=3 if noLGBnoMormon==1
+replace RelOrient=4 if LGBnoMormon==1
+
+oneway menthlth RelOrient, tabulate
+pwmean menthlth, over(RelOrient) mcompare(bonferroni) effects
+
+oneway PHYSICAL RelOrient, tabulate
+pwmean PHYSICAL, over(RelOrient) mcompare(bonferroni) effects
+
+oneway health RelOrient, tabulate
+pwmean health, over(RelOrient) mcompare(bonferroni) effects
+
+
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 CHILDS $demo $family $race $employment cnty**
+generate sample=1 if e(sample)==1
+tab noLGBMormon2 if sample==1
+tab noLGBnoMormon2 if sample==1
+tab LGBnoMormon2 if sample==1
+tab LGBMormon2 if sample==1
+
+
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 CHILDS AGE educ male income
+
+
+log using ttest, text replace
+foreach var of varlist mental PHYSICAL health relattend3 $demo CHILDS $familystats $racestats $employmentstats {
+foreach var2 of varlist noLGBMormon LGBnoMormon noLGBnoMormon {
+ttest `var' if sample==1, by(`var2') 
+sum `var'
+sum `var2'
+}
+}
+log close
+
+*PHYSICAL health
+
+estpost sum mental PHYSICAL health relattend3 female $demo CHILDS $familystats $racestats $employmentstats cnty** if LGB==1 & mormon==1 & sample==1
+est store m1
+estpost sum mental PHYSICAL health relattend3 female $demo CHILDS $familystats $racestats $employmentstats cnty** if LGB==1 & mormon==0 & sample==1
+est store m2 
+estpost sum mental PHYSICAL health relattend3 female $demo CHILDS $familystats $racestats $employmentstats cnty** if LGB==0 & mormon==0 & sample==1
+est store m3
+estpost sum mental PHYSICAL health relattend3 female $demo CHILDS $familystats $racestats $employmentstats cnty** if LGB==0 & mormon==1 & sample==1
+est store m4
+
+*Take out * p < 0.05, ** p < 0.01, *** p < 0.001 in paper
+esttab m1 m2 m3 m4 using Table1.rtf, replace main(mean) aux(sd) b(2) label mtitle("LGB Mormon (Reference)" "LGB Non-Mormon" "Non-LGB Non-Mormon" "Non-LGB Mormon") refcat(mental "\i{Health and religion variables}" income "\i{Demographic controls}" CHILDS "\i{Family variables}" percentraceZ1 "\i{Race & Ethnicity}" percentEmployed "\i{Employment}")  nonumber varwidth(25) modelwidth(10) drop(cnty**) title("Table 1: Unweighted Descriptive and T-Test Statistics") addnotes("Religious services attendance: 0= Never  1= Once a year  2= Several times a year  3= 1-2 times a month  4=2-3 times a month  5= Almost every week  6= Every week  7=More than once a week" "Income: 1=<$10,000  2=$10,000 to <$15,000  3=$15,000 to <$20,000  4=$20,000 to <$25,000  5=$25,000 to <$35,000  6=$35,000 to <$50,000  7=$50,000 to <$75,000  8=$75,000+" "Education: 1=Never attended school or only attended Kindergarten  2=Grades1-8  3=Grades 9-11  4=Grade 12 or GED  5=College 1 year to 3 years  6=College 4 years or more" "Health: 1= Poor 2= Fair 3=Good 4=Very Good 5=Excellent")
+
+svy: mean mental if mormon==1, over(LGB) // More poor days of mental health for Mormon LGB than non-LGB Mormons
+test [mental]0=[mental]1
+
+svy: mean mental if LGB==1, over(mormon) //Insig 
+test [mental]0=[mental]1
+
+
+svy: mean PHYSICAL if mormon==1, over(LGB) // Insig. 
+test [PHYSICAL]0=[PHYSICAL]1
+
+svy: mean PHYSICAL if LGB==1, over(mormon) // Insig
+test [PHYSICAL]0=[PHYSICAL]1 
+
+
+svy: mean health if mormon==1, over(LGB) // More poor days of mental health for Mormon LGB than non-LGB Mormons
+test [health]0=[health]1
+
+svy: mean health if LGB==1, over(mormon) //.1 level  
+test [health]0=[health]1
+
+
+**************************
+************************
+*Even if I don't remove outliers, it's still there (include other guy that reports a lot of days in church still there). 
+
+
+*WILL HAVE TO INPUT THIS BY HAND
+*estout m1 m2 m3 m4 using Table1.rtf, replace main(mean) aux(sd) b(2) label mtitle("Non-Mormon LGB" "Mormon LGB" "Non-Mormon Non-LGB" "Mormon Non-LGB") refcat(mental "\i{Health variables}" income "\i{Demographic controls}" CHILDS "\i{Family variables}" percentrace1 "\i{Race & Ethnicity}" percentemploy1 "\i{Employment}")  nonumber varwidth(30) modelwidth(10) drop(cnty**) title("Table 1: Descriptive and t-test statistics") addnotes("Income: 01=<$10,000  02=$10,000 to <$15,000  03=$15,000 to <$20,000  04=$20,000 to <$25,000  05=$25,000 to <$35,000  06=$35,000 to <$50,000  07=$50,000 to <$75,000  08=$75,000+" "Education: 1=Never attended school or only attended Kindergarten  2=Grades1-8  3=Grades 9-11  4=Grade 12 or GED  5=College 1 year to 3 years  6=College 4 years or more" "Health: 1= Poor 2= Fair 3=Good 4=Very Good 5=Excellent")
+
+
+tab relig if e(sample)==1 & LGB==1
+
+*LGB interaction temrs for PHYSICAL and general health are insignificant. 
+
+
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race cnty**
+
+*******************************************************************TABLES WITH RELATTEND
+
+
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 
+est store m1
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty**
+est store m2
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty**
+est store m3
+svy: regress mental c.relattend3##c.noLGBMormon2 c.relattend3##c.LGBnoMormon2 c.relattend3##c.noLGBnoMormon2 $demo $family $race $employment cnty**
+est store m4
+
+svy: regress mental c.relattend3##c.noLGBMormon2 c.relattend3##c.LGBnoMormon2 c.relattend3##c.noLGBnoMormon2 $demo $family $race $employment cnty** if mormon==1
+
+regress mental relattend3 $demo $family $race $employment cnty** if LGBMormon2==1 //LGB Mormons only, weights can't calculate standard errors with small subsample. 
+regress mental relattend3 $demo $family $race $employment cnty** if noLGBMormon2==1 //Non-LGB Mormons only, 
+regress mental relattend3 $demo $family $race $employment cnty** if LGBnoMormon2==1 //Non-LGB Mormons only, 
+
+*LGB Mormons don't get mental health bump from Church attendance like non-LGB Mormons due. Interaction terms are significant, however, so we can't say that there's an actual difference, but this could be underpowered, saying one is different. Can't say with statistical probability that a difference is itself statistically significant, but power can also be an issue with getting significance with LGB Mormons (110 versus 10,000, p-value hacking). 
+
+esttab m1 m2 m3 m4 using Table2.rtf,title(Table 2: Relationship between days of poor mental health and LGB and Mormon identification, weighted OLS) order(noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 relattend3#noLGBMormon2 relattend3#LGBnoMormon2 relattend3#noLGBnoMormon2) modelwidth(4) varwidth(40) b(2) se(2) mtitle("Model 1" "Model 2" "Model 3" "Model 4")  label star(+ .10 * .05 ** .01 *** .001) replace refcat(mental "\i{Health and religion variables}" income "\i{Demographic controls}" CHILDS "\i{Family variables}" race_nonwhite "\i{Race & Ethnicity}" unemployed "\i{Employment}") drop(cnty**) addnotes("Religious services attendance: 0= Never  1= Once a year  2= Several times a year  3= 1-2 times a month  4=2-3 times a month  5= Almost every week  6= Every week  7=More than once a week" "Income: 1=<$10,000  2=$10,000 to <$15,000  3=$15,000 to <$20,000  4=$20,000 to <$25,000  5=$25,000 to <$35,000  6=$35,000 to <$50,000  7=$50,000 to <$75,000  8=$75,000+" "Education: 1=Never attended school or only attended Kindergarten  2=Grades1-8  3=Grades 9-11  4=Grade 12 or GED  5=College 1 year to 3 years  6=College 4 years or more" "Health: 1= Poor 2= Fair 3=Good 4=Very Good 5=Excellent")
+
+
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 
+est store m1
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2  $demo $family $race $employment cnty**
+est store m2
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty**
+est store m3
+svy: regress PHYSICAL c.relattend3##c.noLGBMormon2 c.relattend3##c.LGBnoMormon2 c.relattend3##c.noLGBnoMormon2 $demo $family $race $employment cnty**
+est store m4
+
+********************************************R&R portion
+
+svy: regress PHYSICAL noLGBMormon2 c.female##c.LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** 
+svy: regress mental noLGBMormon2 c.female##c.LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** 
+svy: regress health noLGBMormon2 c.female##c.LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty**
+
+
+
+
+tab bisexual if LGB==1 & mormon==1 & sample==1
+tab bisexual if LGB==1 & mormon==0 & sample==1
+tab LGBMormon2 if sample==1
+
+tab sexualminority if sample==1
+tab LGB if sample==1
+
+log using RRportion, text replace
+
+*Female instead of male is the same thing, just the flipped coefficient negative instead of psoitive, positive instead of negative, but same value. Maybe just change by hand. 
+
+generate sexualminorityMormon=1 if sexualminority==1 & mormon==1
+generate nosexualminorityMormon=1 if sexualminority==0 & mormon==1
+replace nosexualminorityMormon=0 if sexualminorityMormon==1
+generate sexualminoritynoMormon=1 if sexualminority==1 & mormon==0
+replace sexualminoritynoMormon=0 if sexualminorityMormon==1
+generate nosexualminoritynoMormon=1 if sexualminority==0 & mormon==0
+replace nosexualminoritynoMormon=0 if sexualminorityMormon==1
+
+generate nosexualminorityMormon2= nosexualminorityMormon
+replace nosexualminorityMormon2=0 if sexualminorityMormon==1 | sexualminoritynoMormon==1 | nosexualminoritynoMormon==1
+label variable nosexualminorityMormon2 "Non-sexualminority Mormon"
+generate sexualminorityMormon2= sexualminorityMormon
+replace sexualminorityMormon2=0 if nosexualminorityMormon==1 | sexualminoritynoMormon==1 | nosexualminoritynoMormon==1
+label variable sexualminorityMormon2 "sexualminority Mormon"
+generate sexualminoritynoMormon2=sexualminoritynoMormon
+replace sexualminoritynoMormon2= 0 if nosexualminorityMormon==1 | sexualminorityMormon==1 | nosexualminoritynoMormon==1
+label variable sexualminoritynoMormon2 "sexualminority non-Mormon"
+generate nosexualminoritynoMormon2 =nosexualminoritynoMormon
+replace nosexualminoritynoMormon2= 0 if nosexualminorityMormon==1 | sexualminorityMormon==1 | sexualminoritynoMormon==1
+label variable nosexualminoritynoMormon2 "Non-sexualminority non-Mormon"
+
+*Focused on epxlicitly identified, when others were also included doesn't substantively change a lot in (connect with tables, etc.) Same pattern is found. 
+svy: regress PHYSICAL nosexualminorityMormon2 sexualminoritynoMormon2 nosexualminoritynoMormon2 relattend3 $demo $family $race $employment cnty** 
+svy: regress mental nosexualminorityMormon2 sexualminoritynoMormon2 nosexualminoritynoMormon2 relattend3  $demo $family $race $employment cnty** 
+svy: regress health nosexualminorityMormon2 sexualminoritynoMormon2 nosexualminoritynoMormon2 relattend3 $demo $family $race $employment cnty** 
+
+svy: regress mental c.relattend3##c.nosexualminorityMormon2 c.relattend3##c.sexualminoritynoMormon2 c.relattend3##c.nosexualminoritynoMormon2  $demo $family $race $employment cnty**  //Interactions don't work
+
+svy: regress mental relattend3  $demo $family $race $employment cnty** if sexualminorityMormon2==1 //It is significant, hard to translate, they do get the benefits from church attendance. 
+svy: regress mental relattend3  $demo $family $race $employment cnty** if sexualminoritynoMormon2==1
+
+
+
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2  $demo $family $race $employment cnty** 
+svy: regress mental relattend3 noLGBMormon2 LGBnoMormon2 noLGBnoMormon2  $demo $family $race $employment cnty** 
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2  $demo $family $race $employment cnty** 
+
+*Religious affiliation of everyone else
+tab relig if sample==1 & LGBnoMormon==1
+
+*Another limitation, intensely heteronormative, however, that is not to say that the non-LDS LGBs are necessarily secular.
+*Looking at the religious afifliations of the non-Mormons LGBs in Utah, 22% self-identify as Catholic, 25% as "some other religion not stated," 15% as Christian. 
+*5% Jewish, 6% "Buddhist, Hindu, Muslim, or Islam," and only 5% atheist/agnostic. The remaining categories (episcopalian, native american religion, non-denominatioanl, etc), account for approximately 2% each. 
+*Not assumed that the omitted reference category are secular LGBs. Prop 8, etc. tensions between these communities. Particularly heteronoraitve (import from other). 
+
+*"01=""Protestant"" 02=""Catholic""
+*03=""Jewish"" 04=""LDS (Latter Day Saints/Mormon)"" 05=""No Religion"" 
+*06=""Some other religion I have not mentioned"" 77=""Don't know/Not sure"" 
+* 99=""Refused"" 10=""Agnostic, Atheist"" 11=""Baptist, Southern Baptist"" 12=""Buddhist, Hindu, Muslim, Islam"" 
+*13=""Christian, Born Again, Church of Christ, Pentacostal"" 14=""Episcopalian, Lutheran, Methodist, Presbyterian"" 
+*15=""Greek Orthodox, Eastern Orthodox"" 16=""Jehovah?s Witness"" 17=""Native American Religion"" 18=""Non-Denominational"" 
+*19=""Unitarian"""
+
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 smoker drinkav  $demo $family $race $employment cnty** //Barely moves it to other side of significance. 
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2  $demo $family $race $employment cnty** if e(sample)==1 
+
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 smoker drinkav  $demo $family $race $employment cnty** //Barely moves it to other side of significance. 
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2  $demo $family $race $employment cnty** if e(sample)==1 
+**DRINK AND SMOKING REDUCES N VALUES SIGNIFICANTLY, ABRUPT CHANGES ARE FROM REDUCING SAMPLE SIZE NOT COVARIATES
+
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3  $demo $family $race $employment cnty**
+tab homosexual if LGBMormon2==1 & e(sample)==1 //about 40% of them are homosexual
+tab homosexual if LGBnoMormon2==1 & e(sample)==1 //about 46% of them are homosexual
+
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3  $demo $family $race $employment cnty** if homosexual!=1
+svy: regress PHYSICAL noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3  $demo $family $race $employment cnty** if bisexual!=1
+*WHEN BISEXUALS ARE ONLY USED IT REMAINS, BUT FOR GAYS IT GOES AWAY SUBSAMPLED, DONT KNOW IF THIS IS A POWER ISSUE
+
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty**  
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** 
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty** if homosexual!=1 //Only bisexuals is significant
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** if homosexual!=1 //No change really if only bisexuals
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty** if bisexual!=1 //No difference
+svy: regress mental noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** if bisexual!=1 //No difference
+
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty**
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty**
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty** if homosexual!=1
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** if homosexual!=1
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty** if bisexual!=1
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** if bisexual!=1
+*OVERALL, EFFECTS GO AWAY WHEN ONLY GAYS ARE LOOKED AT, REMAIN WHEN ONLY BISEXUALS ARE LOOKED AT. AGAIN, SPLICING THE HAIRS EVEN THINNER NUMBER-WISE. SORRY I CAN'T BE MORE CLEARER. 
+*DONT WANT TO MULTIPLY TABLES UPON TABLES, CAN PUT THEM IN IF YOU WANT
+
+
+*Now let's do interaction effects: 
+
+generate homosexualMormon= 1 if LGBMormon2==1 & homosexual==1
+generate bisexualMormon=1 if LGBMormon2==1 & bisexual==1
+generate homosexualnonMormon=1 if LGBnoMormon2==1 & homosexual==1
+generate bisexualnonMormon=1 if LGBnoMormon2==1 & bisexual==1
+replace homosexualMormon=0 if (bisexualMormon==1 | LGBnoMormon2==1 | noLGBMormon2==1)
+replace bisexualMormon=0 if (homosexualMormon==1 | LGBnoMormon2==1 | noLGBMormon2==1)
+replace homosexualnonMormon=0 if (bisexualnonMormon==1 |LGBMormon2==1 | noLGBMormon2==1)
+replace bisexualnonMormon=0 if (homosexualnonMormon==1 |LGBMormon2==1 | noLGBMormon2==1)
+
+svy: regress mental homosexualMormon bisexualMormon homosexualnonMormon bisexualnonMormon relattend3 noLGBnoMormon2 $demo $family $race $employment cnty** //Bisexual non-Mormon is statistically significantly more day sof poor mental healht, eveyrone else is not significant comapred to Mormons. (Now using striaght mormons are reference group since I spliced LGBMormons into two groups).  Bisexual non-Mormon is the highest. 
+*Wald tests for coefficients
+test homosexualMormon=bisexualMormon
+test homosexualMormon= homosexualnonMormon
+test homosexualMormon= bisexualnonMormon
+test bisexualMormon= homosexualnonMormon
+test bisexualMormon= bisexualnonMormon //This is significant bisexual mormons are better health than bisexual non-Mormons. Bisedxuals, easier for themt o synthesize both their religious and sexual identities. 
+test homosexualnonMormon=bisexualnonMormon 
+
+svy: regress PHYSICAL homosexualMormon bisexualMormon homosexualnonMormon bisexualnonMormon noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** //Biseuxal non-Mromons worse health 
+*Wald tests for coefficients: 
+test homosexualMormon=bisexualMormon
+test homosexualMormon= homosexualnonMormon
+test homosexualMormon= bisexualnonMormon
+test bisexualMormon= homosexualnonMormon
+test bisexualMormon= bisexualnonMormon //This is significant, bisexual mormons are healthier than no-mormon bisexuals. 
+test homosexualnonMormon=bisexualnonMormon //
+
+svy: regress health homosexualMormon bisexualMormon homosexualnonMormon bisexualnonMormon noLGBnoMormon2 relattend3 $demo $family $race $employment cnty** //Biseuxal non-Mormons worse health
+*Wald tests for coefficients:
+test homosexualMormon=bisexualMormon
+test homosexualMormon= homosexualnonMormon
+test homosexualMormon= bisexualnonMormon //This is sig, homosexual mormons are healthier than bisexual nonmormons
+test bisexualMormon= homosexualnonMormon
+test bisexualMormon= bisexualnonMormon //This is sig, bisexual mormon more healthy
+test homosexualnonMormon=bisexualnonMormon //This is sig, bisexuals less healthy
+
+log close
+
+*svy: regress PHYSICAL c.relattend3##c.noLGBMormon2 c.relattend3##c.LGBnoMormon2 c.relattend3##c.noLGBnoMormon2 $demo $family $race $employment cnty** if mormon==1
+
+*regress PHYSICAL relattend3 $demo $family $race $employment cnty** if LGBMormon2==1 //LGB Mormons only, weights can't calculate standard errors with small subsample. 
+*regress PHYSICAL relattend3 $demo $family $race $employment cnty** if noLGBMormon2==1 //Non-LGB Mormons only, 
+
+*Same as above. 
+
+esttab m1 m2 m3 m4 using Table3.rtf,title(Table 3: Relationship between days of poor physical health and LGB and Mormon identification, weighted OLS) order(noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 relattend3#noLGBMormon2 relattend3#LGBnoMormon2 relattend3#noLGBnoMormon2) modelwidth(4) varwidth(40) b(2) se(2) mtitle("Model 1" "Model 2" "Model 3" "Model 4")  label star(+ .10 * .05 ** .01 *** .001) replace refcat(mental "\i{Health and religion variables}" income "\i{Demographic controls}" CHILDS "\i{Family variables}" race_nonwhite "\i{Race & Ethnicity}" unemployed "\i{Employment}") drop(cnty**) addnotes("Religious services attendance: 0= Never  1= Once a year  2= Several times a year  3= 1-2 times a month  4=2-3 times a month  5= Almost every week  6= Every week  7=More than once a week" "Income: 1=<$10,000  2=$10,000 to <$15,000  3=$15,000 to <$20,000  4=$20,000 to <$25,000  5=$25,000 to <$35,000  6=$35,000 to <$50,000  7=$50,000 to <$75,000  8=$75,000+" "Education: 1=Never attended school or only attended Kindergarten  2=Grades1-8  3=Grades 9-11  4=Grade 12 or GED  5=College 1 year to 3 years  6=College 4 years or more" "Health: 1= Poor 2= Fair 3=Good 4=Very Good 5=Excellent")
+
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 
+est store m1
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 $demo $family $race $employment cnty**
+est store m2
+svy: regress health noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 $demo $family $race $employment cnty**
+est store m3
+svy: regress health c.relattend3##c.noLGBMormon2 c.relattend3##c.LGBnoMormon2 c.relattend3##c.noLGBnoMormon2 $demo $family $race $employment cnty**
+est store m4
+
+svy: regress health c.relattend3##c.noLGBMormon2 c.relattend3##c.LGBnoMormon2 c.relattend3##c.noLGBnoMormon2 $demo $family $race $employment cnty** if mormon==1
+
+regress health relattend3 $demo $family $race $employment cnty** if LGBMormon2==1 //LGB Mormons only, weights can't calculate standard errors with small subsample. 
+regress health relattend3 $demo $family $race $employment cnty** if noLGBMormon2==1 //Non-LGB Mormons only, 
+
+
+esttab m1 m2 m3 m4 using Table4.rtf,title(Table 4: Relationship between self-rated health and LGB and Mormon identification, weighted OLS) order(noLGBMormon2 LGBnoMormon2 noLGBnoMormon2 relattend3 relattend3#noLGBMormon2 relattend3#LGBnoMormon2 relattend3#noLGBnoMormon2) modelwidth(4) varwidth(40) b(2) se(2) mtitle("Model 1" "Model 2" "Model 3" "Model 4")  label star(+ .10 * .05 ** .01 *** .001) replace refcat(mental "\i{Health and religion variables}" income "\i{Demographic controls}" CHILDS "\i{Family variables}" race_nonwhite "\i{Race & Ethnicity}" unemployed "\i{Employment}") drop(cnty**) addnotes("Religious services attendance: 0= Never  1= Once a year  2= Several times a year  3= 1-2 times a month  4=2-3 times a month  5= Almost every week  6= Every week  7=More than once a week" "Income: 1=<$10,000  2=$10,000 to <$15,000  3=$15,000 to <$20,000  4=$20,000 to <$25,000  5=$25,000 to <$35,000  6=$35,000 to <$50,000  7=$50,000 to <$75,000  8=$75,000+" "Education: 1=Never attended school or only attended Kindergarten  2=Grades1-8  3=Grades 9-11  4=Grade 12 or GED  5=College 1 year to 3 years  6=College 4 years or more" "Health: 1= Poor 2= Fair 3=Good 4=Very Good 5=Excellent")
+
+*Here no LGB, no Mormon get significantly less in interaction; however, controlling for multiple models Bonferroni, after running three different measures, plausible that it's an artifact of running multiple models. 
+*Overall, LGB Mormons are healthier. Church attendance is not a significant impact one way or another, exposure to heteronormative messages, etc. 

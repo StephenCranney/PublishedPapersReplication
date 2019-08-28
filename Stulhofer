@@ -1,0 +1,240 @@
+*Get rid of scales (he already has them). 
+cd "C:\Users\stephen_cranney\Desktop"
+clear all
+use "Hypersex and porn_2014_final5", clear
+recode Gender (2=0), gen(male)
+label variable male "Male"
+clonevar age= AGE
+label variable age "Age"
+recode q4 (1 2=0) (3 4 5=1), gen(educ)
+label variable educ "College graduate"
+clonevar mateduc= q5
+label variable mateduc "Maternal education"
+clonevar compareincome= q6
+label variable compareincome "Relative income"
+clonevar relattend= q7
+label variable relattend "Religious services attendance"
+clonevar relraised= q9
+label variable relraised "Raised religiosly" 
+clonevar friendsreligious= q10
+label variable friendsreligious "Friends who are religious"
+tab q11, gen(mar)
+rename mar1 single
+label variable single "Single"
+rename mar2 separated
+label variable separated "Separated"
+rename mar3 cohabiting
+label variable cohabiting "Cohabiting"
+rename mar4 married
+label variable married "Married"
+clonevar relduration= q12
+label variable relduration "Relationship duration"
+recode q14 (2=0), gen(havechildren)
+label variable havechildren "Have children"
+clonevar ageyoungest= q15
+label variable ageyoungest "Age of youngest child"
+clonevar lifesat= q16
+label variable lifesat "Life satisfaction"
+clonevar numpartners12= q28
+label variable numpartners "Number of sex partners, 12 months"
+clonevar sexfreq= q38
+label variable sexfreq "Sexual frequency"
+generate kinsey= 6-q39
+label variable kinsey "Kinsey score"
+clonevar masturbate= q42
+label variable masturbate "Masturbatory frequency"
+clonevar pornfreq= q46
+label variable pornfreq "Frequency of SEM use"
+clonevar pornday= q47
+label variable pornday "Pornography viewing in typical day"
+clonevar pornincrease= q49
+label variable pornincrease "Pornography use increasing"
+recode q50 (1 2 3 4 5=1) (6=0), gen(para_porn)
+label variable para_porn "Nonmainstream SES use"
+*Types of pornography attracted to
+*Partnered pornography use. 
+generate pornfreq2= pornfreq^2
+generate lnpornfreq= ln(pornfreq)
+generate male_ED= (q29_1 + q29_2 + q29_3 + q29_4 + q29_5 + q29_6) / 6
+label variable male_ED "Erectile Dysfunction Scale"
+generate age2 = AGE^2
+generate paraporn= (Q51_21 + Q51_26 + Q51_22 + Q51_7 + Q51_6) / 5
+
+alpha Q51_21  Q51_26  Q51_22  Q51_7  Q51_6  //.84
+
+label variable paraporn "Paraphilic SEM interest"
+generate partnered=1 if q11==2 | q11==3 | q11==4
+replace partnered=0 if q11==1
+label variable partnered "In a relationship/married"
+clonevar feelafterporn= q54
+label variable faithrel "Religiosity"
+label variable NSSS "New Sexual Satisfaction Scale"
+global controls= "age educ separated cohabiting married sexfreq paraporn"  //Ask about paraphilic porn interest, sex frequency measure.
+global controlsfreq= "age educ separated cohabiting married"  //Ask about paraphilic porn interest, sex frequency measure.
+clonevar pornatt= PORN_ATT
+label variable pornatt "Attitudes towards SEM"
+label variable PORNGENR "Paraphilic pornography (binary)" 
+recode Q52 (1=.), gen(partnerpornuse)
+
+*parapornuse
+
+***************************************************
+
+
+egen highreligmale= cut(faithrel) if male==1 & ORIENT==1, group(2) 
+egen highreligfemale=cut(faithrel) if male==0 & ORIENT==1, group(2)
+
+generate category=1 if highreligmale==0 & ORIENT==1
+replace category=2 if highreligmale==1 & ORIENT==1
+replace category=3 if highreligfemale==0 & ORIENT==1
+replace category=4 if highreligfemale==1 & ORIENT==1
+
+generate para_porn_perc= para_porn*100
+label variable para_porn_perc "Nonmainstream SEM use (%)"
+generate educperc= educ*100
+label variable educperc "College graduate (%)"
+generate separatedperc= separated*100
+label variable separatedperc "Separated (%)"
+generate cohabitingperc= cohabiting*100
+label variable cohabitingperc "Cohabiting (%)"
+generate marriedperc= married*100
+label variable marriedperc "Married (%)"
+global controlssummary= "age educperc separatedperc cohabitingperc marriedperc"
+recode ORIENT (2=0), gen(exclusivelyheterosexual)
+label variable exclusivelyheterosexual "Exclusively heterosexual"
+
+*NSSS
+*Frequency of SEM use
+*Attitudes towards SEM use
+*Feelings after SEM use
+*Nonmainstream SEM use
+*Male
+*Religiosity
+*Age
+*College graduate
+*Separated
+*Cohabiting
+*Married
+*Exclusively heterosexual
+
+correlate NSSS pornfreq pornatt feelafterporn para_porn_per male faithrel $controlsfreq if exclusivelyheterosexual==1
+
+*Table 1, insert with abbreviations to make it small enough. 
+********************************************************
+
+regress pornfreq faithrel $controlsfreq if male==1 & exclusivelyheterosexual==1
+est store m1
+regress pornfreq faithrel $controlsfreq if male==0 & exclusivelyheterosexual==1
+est store m2
+regress pornfreq c.faithrel##c.male $controlsfreq if exclusivelyheterosexual==1  
+est store m3
+regress pornfreq faithrel feelafterporn   $controlsfreq  if male==1 & exclusivelyheterosexual==1
+est store m4
+regress pornfreq faithrel feelafterporn   $controlsfreq  if male==0 & exclusivelyheterosexual==1
+est store m5
+regress pornfreq c.faithrel##c.male feelafterporn   $controlsfreq if exclusivelyheterosexual==1 
+est store m6
+regress pornfreq faithrel pornatt   $controlsfreq if male==1 & exclusivelyheterosexual==1
+est store m7
+regress pornfreq faithrel pornatt   $controlsfreq  if male==0 & exclusivelyheterosexual==1
+est store m8
+regress pornfreq c.faithrel##c.male pornatt  $controlsfreq if exclusivelyheterosexual==1
+est store m9
+esttab m1 m2 m3 m4 m5 m6 m7 m8 m9 using Table2.rtf, order(faithrel pornatt feelafterporn faithrel#male male  $controlsfreq) mtitles("Men" "Women" "Men & Women" "Men" "Women" "Men & Women" "Men" "Women" "Men & Women") title(Table 2: Religiosity as a predictor of SEM use) refcat(age "\i{Controls}", nolabel) modelwidth(2) varwidth(20) b(2) se(2) ar2 label star(* .05 ** .01 *** .001) replace  addnotes("Sample consists of only exclusive heterosexuals" "New Sexual Satisfaction Scale: 0-60, higher scores= more satisfied" "Faith and Religiosity Scale (7 items): -1.4-2.5, higher scores= more religious" "SEM use frequency: ''In the past 12 months, how often did you use pornography?'' 1= never, 2= once, 3=twice, 4=several times, 5=about once a month, 6=about once a week, 7=several daily times a week, 8=daily or almost daily" "Attitudes towards SEM scale: 5-25, higher scores= more negative attitudes towards SEM" "How do you usually feel after using pornography? (1=Extremely negative-8=Extremely positive)")
+
+*M6 for table 2, when all orientations are included, religiosity is significant for women. With only heterosexuals religiosity is insignificant for women in the last. 
+
+log using sureg_allor, text replace
+
+capture drop program bootmm3
+program bootmm3, rclass
+sureg (pornatt faithrel $controlsfreq ) (feelafterporn faithrel $controlsfreq ) (pornfreq pornatt feelafterporn faithrel $controlsfreq ) if exclusivelyheterosexual==1
+return scalar inds2 = [pornatt]_b[faithrel]*[pornfreq]_b[pornatt]
+return scalar inds3 = [feelafterporn]_b[faithrel]*[pornfreq]_b[feelafterporn] 
+return scalar inds4 = [pornatt]_b[faithrel]*[pornfreq]_b[pornatt] + [feelafterporn]_b[faithrel]*[pornfreq]_b[feelafterporn]  
+end
+
+set seed 1
+bootstrap r(inds2) r(inds3) r(inds4), reps(5000) nodots: bootmm3
+sureg (pornatt faithrel $controlsfreq ) (feelafterporn faithrel $controlsfreq ) (pornfreq pornatt feelafterporn faithrel $controlsfreq ) if male==1 & exclusivelyheterosexual==1
+
+display  -.0837845 / (-.0519923 + -.0837845) //61.7% Total mediated
+display -.047188/ (-.0519923 + -.0837845) // 34.754096 feel after porn
+display -.0365965 / (-.0519923 + -.0837845) //26.95% porn scale
+
+capture drop program bootmm4
+program bootmm4, rclass
+sureg (pornatt faithrel $controlsfreq ) (feelafterporn faithrel $controlsfreq ) (pornfreq pornatt feelafterporn faithrel $controlsfreq ) if male==0 & exclusivelyheterosexual==1
+return scalar inds2 = [pornatt]_b[faithrel]*[pornfreq]_b[pornatt]
+return scalar inds3 = [feelafterporn]_b[faithrel]*[pornfreq]_b[feelafterporn] 
+return scalar inds4 = [pornatt]_b[faithrel]*[pornfreq]_b[pornatt] + [feelafterporn]_b[faithrel]*[pornfreq]_b[feelafterporn]  
+end
+
+set seed 1
+bootstrap r(inds2) r(inds3) r(inds4), reps(5000) nodots: bootmm4
+sureg (pornatt faithrel $controlsfreq) (feelafterporn faithrel $controlsfreq ) (pornfreq pornatt feelafterporn faithrel $controlsfreq ) if male==0 & exclusivelyheterosexual==1
+
+
+display  -.0962279 / (-.0962279 + .0114405) // 113% mediated (complete)
+
+log close
+
+
+
+
+
+
+
+
+*****H2 and H3, once we take it out the original hypothesis we had was confirmed. 
+
+regress NSSS faithrel pornfreq $controlsfreq  if male==0 & exclusivelyheterosexual==1
+est store m1
+regress NSSS c.faithrel##c.pornfreq $controlsfreq  if male==0 & exclusivelyheterosexual==1
+est store m2
+regress NSSS faithrel pornfreq $controlsfreq  if male==1 & exclusivelyheterosexual==1
+est store m3
+regress NSSS c.faithrel##c.pornfreq $controlsfreq  if male==1 & exclusivelyheterosexual==1
+est store m4
+regress NSSS c.faithrel##c.pornfreq##c.male $controlsfreq  if exclusivelyheterosexual==1
+est store m5
+
+
+*regress NSSS c.faithrel##c.pornfreq $controlsfreq if ORIENT==1 & male==0 & para_porn //When they are split up they are both insign., probably underpowered. 
+
+esttab m1 m2 m3 m4 m5 using Table3.rtf, order(faithrel pornfreq faithrel#pornfreq faithrel#male pornfreq#male faithrel#pornfreq#male male  $controlsfreq) mtitles("Women" "Women" "Men" "Men" "Women and Men") title(Table 3: Religiosity as a moderator in relationship between SEM use and sexual satisfaction (dependent variable= New Sexual Satisfaction Scale)) refcat(age "\i{Controls}", nolabel) modelwidth(5) varwidth(30) b(2) se(2) ar2 label star(* .05 ** .01 *** .001) replace  addnotes("Sample consists of only exclusive heterosexuals" "Sexual Satisfaction Scale: 0-60, higher scores= more satisfied" "Faith and Religiosity Scale (7 items): -1.4-2.5, higher scores= more religious" "SEM use frequency: ''In the past 12 months, how often did you use pornography?'' 1= never, 2= once, 3=twice, 4=several times, 5=about once a month, 6=about once a week, 7=several daily times a week, 8=daily or almost daily")
+
+**********H4
+
+regress para_porn pornfreq faithrel $controlsfreq if male==0 & exclusivelyheterosexual==1 
+est store m1
+regress para_porn pornfreq faithrel $controlsfreq  if male==1 & exclusivelyheterosexual==1
+est store m2
+regress para_porn pornfreq c.male##c.faithrel $controlsfreq if exclusivelyheterosexual==1  
+est store m3
+
+esttab m1 m2 m3 using Table4.rtf, order(pornfreq faithrel male#faithrel male $controlsfreq) mtitles("Women" "Men" "Women and Men") title(Table 4: Religiosity as a Predictor of Nonmainstream SEM Use) refcat(age "\i{Controls}", nolabel) modelwidth(5) varwidth(20) b(2) se(2) ar2 label star(* .05 ** .01 *** .001) replace  addnotes("Sample consists of only exclusive heterosexuals" "Faith and Religiosity Scale (7 items): -1.4-2.5, higher scores= more religious" "SEM use frequency: ''In the past 12 months, how often did you use pornography?'' 1= never, 2= once, 3=twice, 4=several times, 5=about once a month, 6=about once a week, 7=several daily times a week, 8=daily or almost daily" "Nonmainstream SEM use: Which of the following pornographic genres have you used most often in the past (one of the following: sadomasochism, fetishism, bestiality, violent sex, uncommon porn)")
+
+*No changes
+
+**********H5 & H6
+
+
+regress NSSS faithrel para_porn pornfreq $controlsfreq  if male==0 & exclusivelyheterosexual==1
+est store m1
+regress NSSS c.faithrel##c.para_porn pornfreq $controlsfreq  if male==0 & exclusivelyheterosexual==1
+est store m2 
+regress NSSS faithrel para_porn pornfreq $controlsfreq  if male==1 & exclusivelyheterosexual==1
+est store m3
+regress NSSS c.faithrel##c.para_porn pornfreq $controlsfreq  if male==1 & exclusivelyheterosexual==1
+est store m4 
+regress NSSS c.faithrel##c.para_porn##c.male pornfreq $controlsfreq if exclusivelyheterosexual==1 
+est store m5 
+
+
+esttab m1 m2 m3 m4 m5 using Table5.rtf, order(faithrel para_porn pornfreq faithrel#para_porn faithrel#male para_porn#male faithrel#para_porn#male male $controlsfreq) mtitles("Women" "Women" "Men" "Men" "Women & Men") title(Table 5: Religiosity as a Moderator of the Relationship between Nonmainstream SEM Use and Sexual Satisfaction (Dependent Variable = New Sexual Satisfaction Scale)) refcat(age "\i{Controls}", nolabel) modelwidth(3) varwidth(20) b(2) se(2) ar2 label star(* .05 ** .01 *** .001) replace  addnotes("Sample consists of only exclusive heterosexuals" "Faith and Religiosity Scale (7 items): -1.4-2.5, higher scores= more religious" "SEM use frequency: ''In the past 12 months, how often did you use pornography?'' 1= never, 2= once, 3=twice, 4=several times, 5=about once a month, 6=about once a week, 7=several daily times a week, 8=daily or almost daily" "Nonmainstream SEM use: Which of the following pornographic genres have you used most often in the past (one of the following: sadomasochism, fetishism, bestiality, violent sex, uncommon porn)")
+
+
+
+
+

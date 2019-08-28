@@ -1,0 +1,183 @@
+cd "d:\Users\scranney\Desktop\Data\Add Health\AddHealth_Wave4"
+
+*********************************Merging files 
+
+use "21600-0024-Data", clear //Wave IV doesn't have number of sexual partners. Only has whether sexual with current or last partner. 
+sort AID
+egen currentrel_4 = max(H4TR14), by(AID) //Current relationship= maximum score on dichotmous current variable within AID
+recode H4TR13 (2 3 4 5=0), gen(married_4_prep) //Prep marriage variable=1 if relationship is marital
+generate married_4_2= 1 if married_4_prep==1 & H4TR14==1 //Currently married if relationship is current and marital
+replace married_4_2=0 if married_4_prep==0  //Currently married=0 if relationship is not marital
+replace married_4_2=0 if married_4_prep==1 & H4TR14==0 //Currently married=0 if relationship is marital but not current
+egen married_4= max(married_4_2), by(AID) //Married currently for maximum value on currently married variable
+duplicates drop AID, force  //This drops all but the first AID.
+*Near end do additional stuff to add in people who have never had a relationship. 
+
+save W4_relationships, replace
+
+use 21600-0023-Data.dta, clear
+sort AID
+save, replace
+
+use 21600-0012-Data.dta, clear
+sort AID
+save, replace
+
+merge 1:1 AID using 21600-0023-Data.dta
+drop _merge
+merge 1:1 AID using W4_relationships
+
+************************************** Variable prep
+replace married_4=0 if H4TR1==0 
+label variable married_4 "Married-W4"
+
+*Wave IV age
+recode H4OD1M (96=.), gen (w4bmonth)
+recode H4OD1Y (96=.), gen(w4byear)
+gen w4bdate = mdy(w4bmonth, 15,w4byear)
+format w4bdate %d
+gen w4idate=mdy(IMONTH4, IDAY4,IYEAR4)
+format w4idate %d
+gen CALCAGE4=int((w4idate-w4bdate)/365.25)
+label variable CALCAGE4 Age
+
+*Gender
+recode BIO_SEX3 (2=0), gen(male3)
+recode BIO_SEX4 (2=0), gen(male4)
+
+*Marital
+generate married3=1 if (H3MR3_A ==1 | H3MR3_B==1 | H3MR3_C==1) 
+replace married3=0 if H3MR1==0
+replace married3=0 if (H3MR3_A !=1 & H3MR3_B!=1 * H3MR3_C!=1)
+replace married3=. if H3MR1==.
+replace married3=. if H3MR1==1 & H3MR3_A==.
+replace married3=. if H3MR1==2 & H3MR3_B==.
+replace married3=. if H3MR1==3 & H3MR3_C==.
+
+label variable married3 "Married-W3"
+
+label variable CALCAGE3 "Age-W3"
+label variable CALCAGE4 "Age-W4"
+
+label define orientation 1 "Exclusively heterosexual" 2 "Mostly heterosexual" 3 "Bisexual" 4 "Mostly homosexual" 5 "Exclusively homosexual" 6 "No sexual attraction" 96 "Refused" 98 "Don't know" 99 "Not applicable"
+
+label values H3SE13 orientation
+label values H4SE31 orientation
+
+tab H3SE13, gen(SX)
+label variable SX1 "Heterosexual-W3"
+label variable SX2 "Mostly heterosexual-W3"
+label variable SX3 "Bisexual-W3"
+label variable SX4 "Mostly homosexual-W3"
+label variable SX5 "Homosexual-W3"
+label variable SX6 "Asexual-W3"
+clonevar asexual_3=SX6
+label variable SX7  "Refused-W3"
+label variable SX8 "Don't know-W3"
+label variable SX9 "Not applicable-W3"
+
+tab H4SE31, gen(SEXX)
+label variable SEXX1 "Heterosexual-W4"
+label variable SEXX2 "Mostly heterosexual-W4"
+label variable SEXX3 "Bisexual-W4"
+label variable SEXX4 "Mostly homosexual-W4"
+label variable SEXX5 "Homosexual-W4"
+label variable SEXX6 "Asexual-W4"
+clonevar asexual_4=SEXX6
+label variable SEXX7 "Refused-W4"
+label variable SEXX8 "Don't know-W4"
+
+*********************************************Summary stats
+
+misstable summarize H3SE13 
+
+misstable summarize H3SE13 if _merge==1
+misstable summarize H3SE13 if _merge==2
+misstable summarize H3SE13 if _merge==3
+
+misstable summarize H4SE31 
+
+misstable summarize H4SE31 if _merge==1
+misstable summarize H4SE31 if _merge==2
+misstable summarize H4SE31 if _merge==3
+
+tab H4SE31 H3SE13, m  //missing values are all from not being in one dataset or the other. (Based on looking at them individually). 
+************************************************Analyses
+
+*Table 1
+estpost sum male4 married_4 CALCAGE4 if asexual_4==1
+est store m1
+estpost sum male4 married_4 CALCAGE4 if asexual_4==0
+est store m2
+
+ttest male4, by(asexual_4)
+ttest married_4, by(asexual_4)
+ttest CALCAGE4, by(asexual_4)
+
+estpost sum male3 married3 CALCAGE3 if asexual_3==1
+est store m3
+estpost sum male3 married3 CALCAGE3 if asexual_3==0
+est store m4
+
+ttest male3, by(asexual_3)
+ttest married3, by(asexual_3)
+ttest CALCAGE3, by(asexual_3)
+
+esttab m1 m2 m3 m4 using Table1_pre.rtf, replace mtitle("Wave IV asexual" "Wave IV non-asexual" "Wave III asexual" "Wave III non-asexual") main(mean) aux(sd)nonumber label varwidth(15) modelwidth(3) title("Table 1: Descriptive statistics")
+
+*Table 2
+
+tab asexual_3 H4SE31
+tab asexual_4 H3SE13
+
+tab H4SE31 H3SE13, m  //missing values are all from not being in one dataset or the other. (Based on looking at them individually). 
+
+*https://www.bgsu.edu/content/dam/BGSU/college-of-arts-and-sciences/NCFMR/documents/Data/Measurement%20Snapshots/Religion%20and%20Spirituality/Add%20Health/Wave1-Adolescent-Variable-Notes.pdf
+*Not applicable is answered by the respondent according to above for wave one at least. 
+
+* Table 3
+*Cohen's Kappa
+
+generate missing4= SEXX7 + SEXX8
+generate missing3= SX7 + SX8 + SX9
+
+kap SEXX1 SX1, tab
+kap SEXX2 SX2, tab
+kap SEXX3 SX3, tab
+kap SEXX4 SX4, tab
+kap SEXX5 SX5, tab
+kap SEXX6 SX6, tab
+
+kap missing4 missing3, tab
+
+*Table 4
+
+logit asexual_3 SEXX2-SEXX8, or //BEing asexual in other wave, being black, and being male (conflicts with prior findings). 17/21 directly conflicts with prior finding. 
+est store m1
+logit asexual_4 SX2-SX9, or 
+est store m2
+
+esttab m1 m2 using Table3_pre.rtf, replace label title(Table 3: Transitions between waves (Odds ratios)) ///
+eform bic star(+ .10 * .05 ** .01 *** .001) modelwidth(6) varwidth(16)
+
+
+*******************Asexuality and romanticism
+tab H4SE29  if asexual_4==1 & male4==1
+tab H4SE30  if asexual_4==1 & male4==1
+
+tab H4SE29 if asexual_4==1 & male4==0
+tab H4SE30 if asexual_4==1 & male4==0
+
+generate someromantic= H4SE29 + H4SE30
+
+tab someromantic if asexual_4==1
+
+tab H4SE29
+
+list  H4SE29 H4SE30 asexual_4 BIO_SEX4 H3SE13 if asexual_4==1
+
+*******************Asexuality and gender
+tab asexual_4 if BIO_SEX3==1 & BIO_SEX4==0
+tab asexual_4 if BIO_SEX3==0 & BIO_SEX4==1
+
+tab asexual_3 BIO_SEX4
